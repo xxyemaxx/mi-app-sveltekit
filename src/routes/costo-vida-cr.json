@@ -1,0 +1,93 @@
+[
+    {
+        "zona": 1,
+        "distrito": "San Rafael",
+        "provincia": "Alajuela",
+        "costo_total_estimado": 940000,
+        "gastos": {
+            "vivienda": 400000,
+            "alimentacion": 75000,
+            "transporte": 87500,
+            "servicios": 100000,
+            "ocio": 87500
+        }
+    },
+    {
+        "zona": 2,
+        "distrito": "Santa Ana",
+        "provincia": "San José",
+        "costo_total_estimado": 689000,
+        "gastos": {
+            "vivienda": 455000,
+            "alimentacion": 35000,
+            "transporte": 25000,
+            "servicios": 150000,
+            "ocio": 19500
+        }
+    },
+    {
+        "zona": 3,
+        "distrito": "Guadalupe",
+        "provincia": "Cartago",
+        "costo_total_estimado": 1100000,
+        "gastos": {
+            "vivienda": 425000,
+            "alimentacion": 102833,
+            "transporte": 59500,
+            "servicios": 22667,
+            "ocio": 10000
+        }
+    },
+    {
+        "zona": 4,
+        "distrito": "Liberia",
+        "provincia": "Guanacaste",
+        "costo_total_estimado": 1270000,
+        "gastos": {
+            "vivienda": 601.333,
+            "alimentacion": 10000,
+            "transporte": 503.29,
+            "servicios": 30000,
+            "ocio": 5000
+        }
+    },
+    {
+        "zona": 4,
+        "distrito": "Mercedes",
+        "provincia": "Heredia",
+        "costo_total_estimado": 250000,
+        "gastos": {
+            "vivienda": 70000,
+            "alimentacion": 7000,
+            "transporte": 280,
+            "servicios": 60000,
+            "ocio": 30000
+        }
+    },
+    {
+        "zona": 5,
+        "distrito": "Paquera",
+        "provincia": "Puntarenas",
+        "costo_total_estimado": 350778,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 150000,
+            "transporte": 11.400,
+            "servicios": 60000,
+            "ocio": 50000
+        }
+    },
+    {
+        "zona": 6,
+        "distrito": "Siquirres",
+        "provincia": "Limon",
+        "costo_total_estimado": 350000,
+        "gastos": {
+            "vivienda": 600000,
+            "alimentacion": 548000,
+            "transporte": 2013,
+            "servicios": 40000,
+            "ocio": 50000
+        }
+    }
+]
