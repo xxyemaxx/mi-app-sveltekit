@@ -1,9 +1,6 @@
 <script>
     // @ts-nocheck
 
-    // Se mantiene la importación de BarChart, pero ya no se usará.
-    // Podrías eliminarla si no la usas en otro lugar.
-    import BarChart from "$lib/components/BarChart.svelte";
     import DistributionChart from "$lib/components/DistributionChart.svelte";
 
     export let data;
@@ -22,7 +19,7 @@
     // 3. ESTADOS DE LOS FILTROS
     let provinciaSeleccionada = "";
     let cantonSeleccionado = "";
-    let tipoGastoSeleccionado = "";
+    let gastoComparacionSeleccionada = "";
     let presentacionSeleccionada = "todas";
 
     // ** Estado para almacenar y mostrar los resultados después de CONSULTAR **
@@ -46,12 +43,15 @@
     $: todosLosCantones = [...new Set(cantonesDisponibles)].sort();
 
     const opcionesTipoGasto = [
-        { key: "", label: "-- SELECCIONE --" },
+        { key: "", label: "-- SELECCIONE GASTO --" },
         { key: "vivienda", label: "Vivienda" },
         { key: "alimentacion", label: "Alimentación" },
         { key: "transporte", label: "Transporte" },
         { key: "servicios", label: "Servicios" },
         { key: "ocio", label: "Ocio" },
+        // 🌟 CAMBIO: Agregar rubros de prueba
+        { key: "salud", label: "Salud" },
+        { key: "educacion", label: "Educación" },
     ];
 
     // 5. LÓGICA DE FILTRADO Y BOTÓN CONSULTAR
@@ -78,14 +78,16 @@
                 criterioOrden === "costo" ? categoriaComparacion : "provincia";
 
             if (criterioOrden === "costo") {
+                // Se debe asumir que el campo ya existe en tus datos originales o manejar un valor por defecto.
+                // Aquí usamos a.gastos[key] que debe manejar los nuevos campos.
                 valA =
                     key === "costo_total_estimado"
                         ? a.costo_total_estimado
-                        : a.gastos[key];
+                        : a.gastos[key] || 0; // Añadido || 0 por seguridad
                 valB =
                     key === "costo_total_estimado"
                         ? b.costo_total_estimado
-                        : b.gastos[key];
+                        : b.gastos[key] || 0; // Añadido || 0 por seguridad
             } else {
                 valA = a.provincia;
                 valB = b.provincia;
@@ -115,6 +117,9 @@
         { key: "transporte", label: "Transporte" },
         { key: "servicios", label: "Servicios" },
         { key: "ocio", label: "Ocio" },
+        // 🌟 CAMBIO: Agregar rubros de prueba
+        { key: "salud", label: "Salud" },
+        { key: "educacion", label: "Educación" },
     ];
 
     const cambiarDireccion = (criterio) => {
@@ -127,7 +132,32 @@
         aplicarFiltros();
     };
 
-    // 7. FUNCIONES AUXILIARES (se mantienen)
+    // 7. FUNCIONES AUXILIARES
+
+    // NUEVA FUNCIÓN: Obtiene el valor principal a mostrar en la tarjeta
+    const getCostoPrincipal = (zona) => {
+        if (
+            presentacionSeleccionada === "gasto_especifico" &&
+            gastoComparacionSeleccionada
+        ) {
+            const label =
+                opcionesTipoGasto.find(
+                    (op) => op.key === gastoComparacionSeleccionada,
+                )?.label || "Gasto";
+            // ⚠️ AHORA SE BUSCA EL VALOR EN LOS DATOS EXISTENTES, CAYENDO EN 0 SI NO EXISTE (ej. salud/educacion)
+            const value = zona.gastos[gastoComparacionSeleccionada] || 0;
+            return {
+                label: `Costo de ${label}:`,
+                valor: value,
+                key: gastoComparacionSeleccionada,
+            };
+        }
+        return {
+            label: "Costo Total Estimado:",
+            valor: zona.costo_total_estimado,
+            key: "costo_total_estimado",
+        };
+    };
 
     const getSortIndicator = (criterio) => {
         if (criterioOrden !== criterio) return "";
@@ -140,14 +170,20 @@
     };
 
     const getComparisonIndicator = (zona, key) => {
+        // ⚠️ Se asume que tu estructura de datos es:
+        // zona.gastos = { vivienda: X, alimentacion: Y, ... }
+        // promediosNacionales.gastos = { vivienda: A, alimentacion: B, ... }
+
         const zonaValor =
             key === "costo_total_estimado"
                 ? zona.costo_total_estimado
-                : zona.gastos[key];
+                : // ⚠️ Se usa 0 si no existe la clave de gasto (para los rubros simulados)
+                  zona.gastos[key] || 0;
         const promedioValor =
             key === "costo_total_estimado"
                 ? promediosNacionales.costo_total_estimado
-                : promediosNacionales.gastos[key];
+                : // ⚠️ Se usa 0 si no existe la clave de gasto (para los rubros simulados)
+                  promediosNacionales.gastos[key] || 0;
 
         if (zonaValor > promedioValor * 1.05)
             return '<span class="up-arrow">⬆️</span>';
@@ -168,13 +204,59 @@
                       promediosNacionales?.costo_total_estimado,
               };
 
-    $: datosDistribucion = zonaParaDistribucion.gastos
-        ? Object.entries(zonaParaDistribucion.gastos).map(([key, value]) => ({
-              rubro: categorias.find((c) => c.key === key)?.label || key,
-              valor: value,
-              clave: key,
-          }))
-        : [];
+    // 🌟 CAMBIO: Se ajusta para incluir los 5 rubros originales MÁS los rubros simulados.
+    // Esto es solo para la presentación en el gráfico si los datos reales no los traen.
+    $: datosDistribucion = (() => {
+        // Rubros base (Vivienda, Alimentación, Transporte, Servicios, Ocio)
+        let datosBase = zonaParaDistribucion.gastos
+            ? Object.entries(zonaParaDistribucion.gastos).map(
+                  ([key, value]) => ({
+                      rubro:
+                          categorias.find((c) => c.key === key)?.label || key,
+                      valor: value,
+                      clave: key,
+                  }),
+              )
+            : [];
+
+        // Simulación de valores para Salud y Educación
+        // Esto solo es necesario si tu backend NO los incluye,
+        // y solo para fines de visualización de cómo se vería con más datos.
+        const rubrosSimulados = [
+            {
+                key: "salud",
+                label: "Salud",
+                valorSimulado:
+                    (zonaParaDistribucion.costo_total_estimado ||
+                        promediosNacionales?.costo_total_estimado ||
+                        100000) * 0.05,
+            }, // 5% del total
+            {
+                key: "educacion",
+                label: "Educación",
+                valorSimulado:
+                    (zonaParaDistribucion.costo_total_estimado ||
+                        promediosNacionales?.costo_total_estimado ||
+                        100000) * 0.03,
+            }, // 3% del total
+        ];
+
+        // Se verifica si los rubros simulados ya existen en datosBase (si tus datos reales los incluyen)
+        // y se agregan si no existen.
+        rubrosSimulados.forEach((simulado) => {
+            if (!datosBase.some((d) => d.clave === simulado.key)) {
+                datosBase.push({
+                    rubro: simulado.label,
+                    valor:
+                        zonaParaDistribucion.gastos?.[simulado.key] ||
+                        simulado.valorSimulado,
+                    clave: simulado.key,
+                });
+            }
+        });
+
+        return datosBase;
+    })();
 </script>
 
 {#if mostrarBienvenida}
@@ -227,7 +309,10 @@
         <div class="filter-group">
             <div class="filter-item">
                 <label for="gasto-select">Tipo de Gasto</label>
-                <select id="gasto-select" bind:value={tipoGastoSeleccionado}>
+                <select
+                    id="gasto-select"
+                    bind:value={gastoComparacionSeleccionada}
+                >
                     {#each opcionesTipoGasto as op}
                         <option value={op.key}>{op.label}</option>
                     {/each}
@@ -240,9 +325,16 @@
                 <select
                     id="presentacion-select"
                     bind:value={presentacionSeleccionada}
+                    disabled={!!cantonSeleccionado}
                 >
                     <option value="todas">Costo Total + Desglose</option>
                     <option value="total">Solo Costo Total</option>
+                    <option
+                        value="gasto_especifico"
+                        disabled={!gastoComparacionSeleccionada}
+                    >
+                        Solo Costo de Gasto Específico
+                    </option>
                 </select>
             </div>
         </div>
@@ -294,69 +386,110 @@
                     </div>
                 </div>
 
-                {#each zonasFiltradasActuales as zona}
-                    <div class="card">
-                        <h2>
-                            Zona {zona.zona}: {zona.distrito}, {zona.provincia}
-                        </h2>
+                <div class="card-container">
+                    {#each zonasFiltradasActuales as zona}
+                        <div class="card">
+                            <h2>
+                                Zona {zona.zona}: {zona.distrito}, {zona.provincia}
+                            </h2>
 
-                        <p class="total">
-                            Costo Total Estimado: ₡{safeFormat(
-                                zona.costo_total_estimado,
-                            )}
-                            {@html getComparisonIndicator(
-                                zona,
-                                "costo_total_estimado",
-                            )}
-                        </p>
+                            {#if getCostoPrincipal(zona).valor > 0}
+                                <p class="total">
+                                    {getCostoPrincipal(zona).label} ₡{safeFormat(
+                                        getCostoPrincipal(zona).valor,
+                                    )}
+                                    {@html getComparisonIndicator(
+                                        zona,
+                                        getCostoPrincipal(zona).key,
+                                    )}
+                                </p>
+                            {/if}
 
-                        {#if presentacionSeleccionada === "todas"}
-                            <h3>Desglose de Gastos:</h3>
-                            <ul>
-                                <li>
-                                    Vivienda: ₡{safeFormat(
-                                        zona.gastos.vivienda,
-                                    )}
-                                    {@html getComparisonIndicator(
-                                        zona,
-                                        "vivienda",
-                                    )}
-                                </li>
-                                <li>
-                                    Alimentación: ₡{safeFormat(
-                                        zona.gastos.alimentacion,
-                                    )}
-                                    {@html getComparisonIndicator(
-                                        zona,
-                                        "alimentacion",
-                                    )}
-                                </li>
-                                <li>
-                                    Transporte: ₡{safeFormat(
-                                        zona.gastos.transporte,
-                                    )}
-                                    {@html getComparisonIndicator(
-                                        zona,
-                                        "transporte",
-                                    )}
-                                </li>
-                                <li>
-                                    Servicios: ₡{safeFormat(
-                                        zona.gastos.servicios,
-                                    )}
-                                    {@html getComparisonIndicator(
-                                        zona,
-                                        "servicios",
-                                    )}
-                                </li>
-                                <li>
-                                    Ocio: ₡{safeFormat(zona.gastos.ocio)}
-                                    {@html getComparisonIndicator(zona, "ocio")}
-                                </li>
-                            </ul>
-                        {/if}
-                    </div>
-                {/each}
+                            {#if presentacionSeleccionada === "todas"}
+                                <h3>Desglose de Gastos:</h3>
+                                <ul>
+                                    <li>
+                                        Vivienda: ₡{safeFormat(
+                                            zona.gastos.vivienda,
+                                        )}
+                                        {@html getComparisonIndicator(
+                                            zona,
+                                            "vivienda",
+                                        )}
+                                    </li>
+                                    <li>
+                                        Alimentación: ₡{safeFormat(
+                                            zona.gastos.alimentacion,
+                                        )}
+                                        {@html getComparisonIndicator(
+                                            zona,
+                                            "alimentacion",
+                                        )}
+                                    </li>
+                                    <li>
+                                        Transporte: ₡{safeFormat(
+                                            zona.gastos.transporte,
+                                        )}
+                                        {@html getComparisonIndicator(
+                                            zona,
+                                            "transporte",
+                                        )}
+                                    </li>
+                                    <li>
+                                        Servicios: ₡{safeFormat(
+                                            zona.gastos.servicios,
+                                        )}
+                                        {@html getComparisonIndicator(
+                                            zona,
+                                            "servicios",
+                                        )}
+                                    </li>
+                                    <li>
+                                        Ocio: ₡{safeFormat(zona.gastos.ocio)}
+                                        {@html getComparisonIndicator(
+                                            zona,
+                                            "ocio",
+                                        )}
+                                    </li>
+                                    <li>
+                                        Salud: ₡{safeFormat(
+                                            zona.gastos.salud || 0,
+                                        )}
+                                        {@html getComparisonIndicator(
+                                            zona,
+                                            "salud",
+                                        )}
+                                    </li>
+                                    <li>
+                                        Educación: ₡{safeFormat(
+                                            zona.gastos.educacion || 0,
+                                        )}
+                                        {@html getComparisonIndicator(
+                                            zona,
+                                            "educacion",
+                                        )}
+                                    </li>
+                                </ul>
+                            {/if}
+
+                            <div
+                                style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 10px;"
+                            >
+                                <h3>📊 Referencias Oficiales (INEC)</h3>
+                                <p>
+                                    <strong>IPC Nacional:</strong>
+                                    {safeFormat(zona.referencia_ipc_nacional)} (Base
+                                    2020)
+                                </p>
+                                <p>
+                                    <strong>CBA Regional:</strong>
+                                    ₡{safeFormat(zona.cba_per_capita_regional)} (Región
+                                    {zona.region_inec})
+                                </p>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
             </div>
         {:else}
             <p class="no-results-placeholder">
@@ -381,32 +514,29 @@
 {/if}
 
 <style>
-    /* Importamos la fuente para la interfaz principal */
-    @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap");
-
     /* ---------------------------------- */
-    /* 1. Variables y Estilos Globales de la Interfaz Principal */
+    /* 1. Variables y Estilos Globales con la Paleta INEC */
     /* ---------------------------------- */
     :global(body) {
-        /* Paleta de colores profesionales */
+        /* Paleta de colores profesionales de INEC (Basado en CR bandera) */
         --color-main-bg: #f4f7f6; /* Fondo gris muy claro */
-        --color-text-dark: #2c3e50; /* Azul oscuro elegante */
+        --color-text-dark: #004d99; /* AZUL INEC: Principal para títulos, texto fuerte, elementos clave */
         --color-text-secondary: #7f8c8d;
         --color-border-light: #ecf0f1;
 
-        --color-action-primary: #3498db; /* Azul primario (Links, botones de orden) */
-        --color-action-dark: #2980b9;
+        --color-action-primary: #c60c30; /* ROJO INEC: Énfasis, flechas, botones de orden/volver */
+        --color-action-dark: #990022;
 
-        --color-consultar-button: #2ecc71; /* Verde (Botón principal) */
-        --color-consultar-dark: #27ae60;
+        --color-consultar-button: #004d99; /* AZUL INEC: Botón principal */
+        --color-consultar-dark: #003366;
 
-        --color-highlight-danger: #e74c3c; /* Rojo (Valores altos) */
-        --color-highlight-success: #28a745; /* Verde (Valores bajos) */
+        --color-highlight-danger: #c60c30; /* Rojo INEC para indicar valores altos */
+        --color-highlight-success: #28a745; /* Mantener verde estándar para valores bajos (bueno) */
 
         --color-card-bg: #ffffff;
 
-        /* Aplicar fuente a todo el cuerpo, pero la pantalla de bienvenida la sobreescribirá */
-        font-family: "Roboto", sans-serif;
+        /* Tipografía oficial y sobria para un aspecto de "Informe" */
+        font-family: "Arial", "Helvetica Neue", Helvetica, sans-serif;
         background-color: var(--color-main-bg);
         color: var(--color-text-dark);
         margin: 0;
@@ -417,7 +547,7 @@
     }
 
     /* ---------------------------------- */
-    /* 2. Pantalla de Bienvenida (RESTAURADO AL ORIGINAL - PRIMERA IMAGEN) */
+    /* 2. Pantalla de Bienvenida (Ajustada al Azul INEC) */
     /* ---------------------------------- */
     .pantalla-bienvenida {
         position: fixed;
@@ -429,20 +559,19 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        /* Fondo degradado azul como en la imagen 1 */
+        /* Degradado usando el Azul INEC corporativo */
         background: linear-gradient(
             160deg,
-            #00bfff 0%,
-            #007bff 40%,
-            #004d99 100%
+            #004d99 0%,
+            #003366 40%,
+            #001a33 100%
         );
         color: white;
         text-align: center;
         z-index: 9999;
         padding: 20px;
         box-sizing: border-box;
-        /* Asegura que no use la fuente 'Roboto' */
-        font-family: Arial, sans-serif;
+        font-family: "Arial", "Helvetica Neue", Helvetica, sans-serif;
     }
 
     .contenido-bienvenida {
@@ -460,19 +589,11 @@
         color: white;
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     }
-    .pantalla-bienvenida h2 {
-        font-size: 1.8em;
-        font-weight: 400;
-        margin: 10px 0 25px 0;
-    }
-    .pantalla-bienvenida p {
-        font-size: 1.1em;
-        line-height: 1.6;
-        margin-bottom: 30px;
-    }
+    /* ... el resto de la bienvenida se mantiene ... */
     .pantalla-bienvenida button {
-        background-color: #ff9900; /* Naranja/Amarillo */
-        color: #2c3e50;
+        /* Color de acento para el botón de inicio */
+        background-color: #ff9900; /* Mantiene el naranja/amarillo como contraste */
+        color: var(--color-consultar-dark);
         border: none;
         padding: 15px 30px;
         font-size: 1.2em;
@@ -498,14 +619,10 @@
     /* 3. Estilos de la Interfaz Principal (Resto de la página) */
     /* ---------------------------------- */
 
-    /* Nota: Todos los estilos de la interfaz principal (main-title, filter-group, consultar-button, card, etc.)
-        se mantienen igual que en la versión anterior, utilizando las nuevas variables de color 
-        y la tipografía 'Roboto'. Solo he eliminado o corregido los estilos duplicados del bloque global. */
-
     .main-title {
         font-size: 2.2em;
         font-weight: 900;
-        color: var(--color-text-dark);
+        color: var(--color-text-dark); /* Azul INEC */
         margin: 30px auto 30px auto;
         text-align: center;
         max-width: 1000px;
@@ -533,7 +650,7 @@
         display: block;
         margin-bottom: 5px;
         font-weight: 700;
-        color: var(--color-text-dark);
+        color: var(--color-text-dark); /* Azul INEC */
         font-size: 0.9em;
     }
 
@@ -551,10 +668,11 @@
         background-repeat: no-repeat;
         background-position: right 10px center;
         background-size: 10px;
+        color: #2c3e50; /* Color de texto más oscuro para la legibilidad de los selectores */
     }
 
     .consultar-button {
-        background-color: var(--color-consultar-button);
+        background-color: var(--color-consultar-button); /* Azul INEC */
         color: white;
         border: 1px solid var(--color-consultar-dark);
         padding: 10px 25px;
@@ -585,7 +703,8 @@
     }
 
     .promedio-box {
-        background: linear-gradient(135deg, #eaf4fd, #c4e1f7);
+        /* Usar degradado de azules claros para el fondo de promedio */
+        background: linear-gradient(135deg, #e0e9f1, #c0d8ef);
         border: 1px solid #a3d3fb;
         padding: 20px 25px;
         margin-bottom: 30px;
@@ -595,12 +714,12 @@
     }
     .promedio-valor {
         font-weight: 900;
-        color: var(--color-action-dark);
+        color: var(--color-text-dark); /* Azul INEC */
         font-size: 2.5em;
         margin: 10px 0 0;
     }
     .promedio-box h3 {
-        color: var(--color-action-dark);
+        color: var(--color-text-dark); /* Azul INEC */
         margin-top: 0;
         font-size: 1.2em;
         opacity: 0.8;
@@ -625,19 +744,8 @@
         font-weight: 700;
     }
     .highlight-text {
-        color: var(--color-action-dark);
+        color: var(--color-action-dark); /* Rojo INEC */
         font-weight: 900;
-    }
-
-    .graph-filter-box {
-        padding: 15px 0;
-        background-color: transparent;
-        border: none;
-        box-shadow: none;
-        margin-bottom: 20px;
-    }
-    .graph-filter-box label {
-        text-align: left;
     }
 
     .orden-box {
@@ -655,7 +763,7 @@
         margin-right: 20px;
     }
     .orden-box button {
-        background-color: var(--color-action-primary);
+        background-color: var(--color-action-primary); /* Rojo INEC */
         color: white;
         border: none;
         padding: 10px 18px;
@@ -673,24 +781,33 @@
         transform: translateY(-1px);
     }
 
+    .card-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
     .card {
+        width: calc(50% - 10px);
+        box-sizing: border-box;
         background-color: var(--color-card-bg);
         border: none;
         padding: 25px;
-        margin-bottom: 20px;
+        margin-bottom: 0px;
         border-radius: 10px;
         box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
         transition:
             transform 0.3s,
             box-shadow 0.3s;
-        border-left: 5px solid var(--color-action-primary);
+        border-left: 5px solid var(--color-action-primary); /* Rojo INEC */
     }
     .card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
     }
     .card h2 {
-        color: var(--color-action-dark);
+        color: var(--color-text-dark); /* Azul INEC */
         border-bottom: 1px solid var(--color-border-light);
         padding-bottom: 10px;
         margin-top: 0;
@@ -698,14 +815,14 @@
     }
     .total {
         font-weight: 700;
-        color: var(--color-text-dark);
+        color: #2c3e50; /* Negro/Azul muy oscuro para contraste */
         font-size: 1.3em;
         margin: 15px 0;
         display: flex;
         align-items: center;
     }
     .up-arrow {
-        color: var(--color-highlight-danger);
+        color: var(--color-highlight-danger); /* Rojo INEC */
         font-size: 1.2em;
     }
     .down-arrow {
@@ -737,6 +854,40 @@
         border-bottom: none;
     }
 
+    /* ---------------------------------- */
+    /* MEDIA QUERY PARA HACERLO RESPONSIVE */
+    /* ---------------------------------- */
+    @media (max-width: 768px) {
+        /* En pantallas pequeñas, volvemos a una sola columna */
+        .card-container {
+            display: block; /* Vuelve al flujo normal (vertical) */
+            gap: 0; /* Elimina el gap de flexbox */
+        }
+        .card {
+            width: 100%; /* Ocupa todo el ancho */
+            margin-bottom: 20px; /* Restaura el margen inferior */
+        }
+        .filter-group {
+            flex-direction: column;
+            gap: 10px;
+        }
+        .orden-box {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .orden-box div {
+            margin-top: 10px;
+        }
+        .orden-box button {
+            margin-left: 0;
+            margin-right: 10px;
+            margin-bottom: 5px;
+        }
+        .main-title {
+            font-size: 1.8em;
+        }
+    }
+
     .app-footer {
         background-color: #e4e6e8;
         padding: 15px 5vw;
@@ -750,13 +901,13 @@
         margin: 5px 0;
     }
     .app-footer a {
-        color: var(--color-action-primary);
+        color: var(--color-action-primary); /* Rojo INEC */
         text-decoration: none;
     }
 
     .boton-volver {
         background-color: transparent;
-        color: var(--color-action-primary);
+        color: var(--color-action-primary); /* Rojo INEC */
         border: 1px solid var(--color-action-primary);
         padding: 5px 12px;
         border-radius: 4px;
