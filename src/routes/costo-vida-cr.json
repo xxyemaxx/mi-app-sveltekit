@@ -12,7 +12,10 @@
             "alimentacion": 75000,
             "transporte": 87500,
             "servicios": 100000,
-            "ocio": 87500
+            "salud": 32242,
+            "educacion": 50384,
+            "comunicaciones": 28012,
+            "ocio": 166862
         }
     },
     {
@@ -28,7 +31,10 @@
             "alimentacion": 120000,
             "transporte": 60000,
             "servicios": 150000,
-            "ocio": 170000
+            "salud": 29155,
+            "educacion": 45560,
+            "comunicaciones": 25330,
+            "ocio": 79955
         }
     },
     {
@@ -44,7 +50,10 @@
             "alimentacion": 35000,
             "transporte": 25000,
             "servicios": 150000,
-            "ocio": 19500
+            "salud": 23517,
+            "educacion": 36709,
+            "comunicaciones": 20419,
+            "ocio": 3855
         }
     },
     {
@@ -60,7 +69,10 @@
             "alimentacion": 200000,
             "transporte": 150000,
             "servicios": 100000,
-            "ocio": 100000
+            "salud": 42875,
+            "educacion": 67000,
+            "comunicaciones": 37250,
+            "ocio": 102875
         }
     },
     {
@@ -72,11 +84,14 @@
         "referencia_ipc_nacional": 108.23,
         "cba_per_capita_regional": 64746,
         "gastos": {
-            "vivienda": 425000,
+            "vivienda": 417755,
             "alimentacion": 102833,
             "transporte": 59500,
             "servicios": 22667,
-            "ocio": 18000
+            "salud": 21556,
+            "educacion": 33621,
+            "comunicaciones": 18704,
+            "ocio": 1363
         }
     },
     {
@@ -92,7 +107,10 @@
             "alimentacion": 150000,
             "transporte": 50000,
             "servicios": 90000,
-            "ocio": 80000
+            "salud": 25725,
+            "educacion": 40200,
+            "comunicaciones": 22350,
+            "ocio": 41725
         }
     },
     {
@@ -104,11 +122,14 @@
         "referencia_ipc_nacional": 108.23,
         "cba_per_capita_regional": 60865,
         "gastos": {
-            "vivienda": 601333,
+            "vivienda": 400000,
             "alimentacion": 10000,
             "transporte": 3000,
             "servicios": 30000,
-            "ocio": 7000
+            "salud": 22351,
+            "educacion": 34891,
+            "comunicaciones": 19409,
+            "ocio": 131682
         }
     },
     {
@@ -124,7 +145,10 @@
             "alimentacion": 80000,
             "transporte": 50000,
             "servicios": 40000,
-            "ocio": 30000
+            "salud": 15435,
+            "educacion": 24120,
+            "comunicaciones": 13410,
+            "ocio": 27035
         }
     },
     {
@@ -140,7 +164,10 @@
             "alimentacion": 7000,
             "transporte": 280,
             "servicios": 130000,
-            "ocio": 30000
+            "salud": 8137,
+            "educacion": 12711,
+            "comunicaciones": 7069,
+            "ocio": 2183
         }
     },
     {
@@ -156,7 +183,10 @@
             "alimentacion": 140000,
             "transporte": 70000,
             "servicios": 180000,
-            "ocio": 100000
+            "salud": 33500,
+            "educacion": 52408,
+            "comunicaciones": 29104,
+            "ocio": 500
         }
     },
     {
@@ -172,7 +202,10 @@
             "alimentacion": 150000,
             "transporte": 11400,
             "servicios": 60000,
-            "ocio": 50000
+            "salud": 19616,
+            "educacion": 30605,
+            "comunicaciones": 17028,
+            "ocio": 2751
         }
     },
     {
@@ -188,7 +221,10 @@
             "alimentacion": 100000,
             "transporte": 20000,
             "servicios": 50000,
-            "ocio": 30000
+            "salud": 13720,
+            "educacion": 21440,
+            "comunicaciones": 11920,
+            "ocio": 32920
         }
     },
     {
@@ -200,11 +236,14 @@
         "referencia_ipc_nacional": 108.23,
         "cba_per_capita_regional": 67772,
         "gastos": {
-            "vivienda": 600000,
+            "vivienda": 500000,
             "alimentacion": 548000,
             "transporte": 2013,
             "servicios": 40000,
-            "ocio": 48000
+            "salud": 42488,
+            "educacion": 66361,
+            "comunicaciones": 36875,
+            "ocio": 44427
         }
     },
     {
@@ -216,11 +255,14 @@
         "referencia_ipc_nacional": 108.23,
         "cba_per_capita_regional": 67772,
         "gastos": {
-            "vivienda": 400000,
+            "vivienda": 350000,
             "alimentacion": 250000,
             "transporte": 50000,
             "servicios": 60000,
-            "ocio": 40000
+            "salud": 27440,
+            "educacion": 42880,
+            "comunicaciones": 23840,
+            "ocio": 45840
         }
     }
 ]
