@@ -1,9 +1,9 @@
 <script>
     // @ts-nocheck
-    // Importa tu componente de gráfico. Asumo que está en $lib/components/
+    // Importa mi componente de gráfico.
     import DistributionChart from "$lib/components/DistributionChart.svelte";
 
-    // 1. CARGA DE DATOS (proviene de +page.js)
+    // 1. CARGA DE DATOS (+page.js)
     export let data;
 
     const todasLasZonas = data?.costos || [];
@@ -21,6 +21,9 @@
     let criterioOrden = "costo";
     let direccionOrden = "desc";
     let categoriaComparacion = "costo_total_estimado";
+
+    // ✅ CORRECCIÓN MODO CLARO/OSCURO: ESTADO PARA EL TEMA
+    let theme = "light";
 
     // 3. DATOS REACTIVOS DE SELECTORES
     $: todasLasProvincias = [
@@ -50,7 +53,7 @@
         { key: "comunicaciones", label: "Comunicaciones" },
     ];
 
-    // Lista de categorías para el selector de ordenamiento
+    // La lista de categorías para el selector de ordenamiento
     const categorias = opcionesTipoGasto.slice(1);
     categorias.unshift({
         key: "costo_total_estimado",
@@ -102,7 +105,7 @@
         mostrarResultados = true;
     };
 
-    // Al cambiar la provincia, resetea el cantón para evitar inconsistencias
+    // Cuando cambia de provincia, Se resetea el cantón para evitar inconsistencias
     $: if (provinciaSeleccionada) {
         cantonSeleccionado = "";
     }
@@ -117,35 +120,7 @@
         aplicarFiltros();
     };
 
-    // 5. FUNCIONES DE FORMATO Y COMPARACIÓN
-    const getCostoPrincipal = (zona) => {
-        let key = "costo_total_estimado";
-
-        if (
-            presentacionSeleccionada === "gasto_especifico" &&
-            gastoComparacionSeleccionada
-        ) {
-            key = gastoComparacionSeleccionada;
-        } else if (presentacionSeleccionada === "solo_total") {
-            key = "costo_total_estimado";
-        }
-
-        const label =
-            categorias.find((c) => c.key === key)?.label ||
-            "Costo Total Estimado";
-
-        const valor =
-            key === "costo_total_estimado"
-                ? zona.costo_total_estimado
-                : zona.gastos?.[key] || 0;
-
-        return {
-            label: `${label}:`,
-            valor: valor,
-            key: key,
-        };
-    };
-
+    // 5. LAS FUNCIONES DE FORMATO Y COMPARACIÓN
     const safeFormat = (value) => {
         const num = parseFloat(value) || 0;
         return num.toLocaleString("es-CR", {
@@ -168,10 +143,10 @@
 
         // Compara con una ventana del 5%
         if (zonaValor > promedioValor * 1.05)
-            return '<span class="up-arrow">⬆️</span>';
+            return '<span class="indicator up-arrow">⬆️</span>';
         if (zonaValor < promedioValor * 0.95)
-            return '<span class="down-arrow">⬇️</span>';
-        return "➖";
+            return '<span class="indicator down-arrow">⬇️</span>';
+        return '<span class="indicator">➖</span>';
     };
 
     // 6. LÓGICA DEL GRÁFICO
@@ -198,11 +173,11 @@
                 });
             }
         });
-        // Ordenar por valor (mayor a menor) para el gráfico
+        // Esto ordena por valor (mayor a menor) para el gráfico
         return datosBase.sort((a, b) => b.valor - a.valor);
     })();
 
-    // 7. FUNCIÓN DE NAVEGACIÓN (Corregida para manejar historial vacío)
+    // 7. LA FUNCIÓN DE NAVEGACIÓN
     const goBack = () => {
         // Si hay un historial previo, usamos la navegación del navegador
         if (window.history.length > 1) {
@@ -213,6 +188,26 @@
             mostrarResultados = false;
         }
     };
+
+    // ✅ CORRECCIÓN MODO CLARO/OSCURO: FUNCIÓN PARA ALTERNAR EL TEMA
+    const toggleTheme = () => {
+        theme = theme === "light" ? "dark" : "light";
+    };
+
+    // ✅ CORRECCIÓN MODO CLARO/OSCURO: ACCIÓN PARA APLICAR LA CLASE AL <body>
+    function setBodyClass(node, currentTheme) {
+        function update(newTheme) {
+            document.body.className = newTheme;
+        }
+        update(currentTheme);
+
+        return {
+            update,
+            destroy() {
+                // Limpieza si es necesaria
+            },
+        };
+    }
 </script>
 
 <svelte:head>
@@ -223,6 +218,18 @@
     />
 </svelte:head>
 
+<svelte:body use:setBodyClass={theme} />
+
+<div class="theme-toggle-container">
+    <button on:click={toggleTheme} class="theme-toggle-button">
+        {#if theme === "light"}
+            🌞 Modo Claro
+        {:else}
+            🌙 Modo Oscuro
+        {/if}
+    </button>
+</div>
+
 <div class="welcome" style="display: {mostrarBienvenida ? 'flex' : 'none'};">
     <div class="welcome-content">
         <h1>
@@ -231,7 +238,7 @@
         </h1>
         <p>
             Analiza el costo promedio de Vivienda, Alimentación, Transporte y
-            mas en sus diferentes provincias y distritos del pais.
+            mas en sus diferentes provincias y distritos del país.
         </p>
 
         <div class="button-group">
@@ -318,7 +325,10 @@
 
     {#if mostrarResultados}
         <div class="chart-container">
-            <h2>Grafico y Distribución de Gastos (Promedio Nacional) 📊</h2>
+            <h2>
+                Grafico y Distribución de Gastos ({zonaParaDistribucion.distrito})
+                📊
+            </h2>
             <p class="chart-subtitle">
                 Costo Total Estimado: ₡{safeFormat(
                     zonaParaDistribucion.costo_total_estimado,
@@ -337,7 +347,9 @@
         </div>
 
         <div class="list-header">
-            <h3>Mostrando las 7 provincias del pais y sus Distritos</h3>
+            <h3>
+                Mostrando los Distritos Encontrados ({zonasFiltradasActuales.length})
+            </h3>
             <div class="orden-group">
                 <label>
                     Ordenar por:
@@ -363,175 +375,198 @@
             </div>
         </div>
 
-        <div class="card-container">
-            {#each zonasFiltradasActuales as zona}
-                <div class="card">
-                    <header class="card-header">
-                        <h2>
-                            Zona {zona.zona}: {zona.distrito}, **{zona.provincia}**
-                        </h2>
-                    </header>
+        <div class="table-list-container">
+            <div class="table-header">
+                <span class="col-zona">Distrito</span>
+                <span class="col-provincia">Provincia</span>
+                <span class="col-total">Costo Total Estimado</span>
+                {#if presentacionSeleccionada === "todas"}
+                    <span class="col-vivienda">Vivienda</span>
+                    <span class="col-alimentacion">Alimentación</span>
+                    <span class="col-transporte">Transporte</span>
+                    <span class="col-servicios">Servicios</span>
+                    <span class="col-otros">Otros Gastos</span>
+                {:else if presentacionSeleccionada === "gasto_especifico" && gastoComparacionSeleccionada}
+                    <span class="col-especifico"
+                        >{categorias.find(
+                            (c) => c.key === gastoComparacionSeleccionada,
+                        )?.label || "Gasto"}</span
+                    >
+                {/if}
+            </div>
 
-                    <p class="total-display">
-                        <span class="label"
-                            >{getCostoPrincipal(zona).label}</span
-                        >
-                        <span class="value"
-                            >₡{safeFormat(getCostoPrincipal(zona).valor)}</span
-                        >
-                        <span class="indicator">
-                            {#if getCostoPrincipal(zona).key !== "costo_total_estimado"}
-                                {@html getComparisonIndicator(
-                                    zona,
-                                    getCostoPrincipal(zona).key,
-                                )}
-                            {/if}
-                        </span>
-                    </p>
+            {#each zonasFiltradasActuales as zona}
+                <div class="table-row-list">
+                    <span class="col-zona">
+                        <strong>{zona.distrito}</strong>
+                    </span>
+
+                    <span class="col-provincia">
+                        {zona.provincia}
+                    </span>
+
+                    <span class="col-total value-total">
+                        ₡{safeFormat(zona.costo_total_estimado)}
+                        {@html getComparisonIndicator(
+                            zona,
+                            "costo_total_estimado",
+                        )}
+                    </span>
 
                     {#if presentacionSeleccionada === "todas"}
-                        <h3 class="desglose-title">Desglose de Gastos</h3>
-                        <ul class="gastos-list">
-                            <li>
-                                <span>Vivienda:</span>
-                                <span>₡{safeFormat(zona.gastos.vivienda)}</span>
-                                <span class="indicator"
-                                    >{@html getComparisonIndicator(
-                                        zona,
-                                        "vivienda",
-                                    )}</span
-                                >
-                            </li>
-                            <li>
-                                <span>Alimentación:</span>
-                                <span
-                                    >₡{safeFormat(
-                                        zona.gastos.alimentacion,
-                                    )}</span
-                                >
-                                <span class="indicator"
-                                    >{@html getComparisonIndicator(
-                                        zona,
-                                        "alimentacion",
-                                    )}</span
-                                >
-                            </li>
-                            <li>
-                                <span>Transporte:</span>
-                                <span
-                                    >₡{safeFormat(zona.gastos.transporte)}</span
-                                >
-                                <span class="indicator"
-                                    >{@html getComparisonIndicator(
-                                        zona,
-                                        "transporte",
-                                    )}</span
-                                >
-                            </li>
-                            <li>
-                                <span>Servicios:</span>
-                                <span>₡{safeFormat(zona.gastos.servicios)}</span
-                                >
-                                <span class="indicator"
-                                    >{@html getComparisonIndicator(
-                                        zona,
-                                        "servicios",
-                                    )}</span
-                                >
-                            </li>
-                            <li>
-                                <span>Ocio:</span>
-                                <span>₡{safeFormat(zona.gastos.ocio)}</span>
-                                <span class="indicator"
-                                    >{@html getComparisonIndicator(
-                                        zona,
-                                        "ocio",
-                                    )}</span
-                                >
-                            </li>
-                            <li>
-                                <span>Salud:</span>
-                                <span>₡{safeFormat(zona.gastos.salud)}</span>
-                                <span class="indicator"
-                                    >{@html getComparisonIndicator(
-                                        zona,
-                                        "salud",
-                                    )}</span
-                                >
-                            </li>
-                            <li>
-                                <span>Educación:</span>
-                                <span>₡{safeFormat(zona.gastos.educacion)}</span
-                                >
-                                <span class="indicator"
-                                    >{@html getComparisonIndicator(
-                                        zona,
-                                        "educacion",
-                                    )}</span
-                                >
-                            </li>
-                            <li>
-                                <span>Comunicaciones:</span>
-                                <span
-                                    >₡{safeFormat(
-                                        zona.gastos.comunicaciones,
-                                    )}</span
-                                >
-                                <span class="indicator"
-                                    >{@html getComparisonIndicator(
-                                        zona,
-                                        "comunicaciones",
-                                    )}</span
-                                >
-                            </li>
-                        </ul>
-                    {/if}
+                        <span class="col-vivienda value">
+                            ₡{safeFormat(zona.gastos.vivienda)}
+                            {@html getComparisonIndicator(zona, "vivienda")}
+                        </span>
 
-                    <div class="references">
-                        <h3>**Referencias Oficiales (INEC)**</h3>
-                        <p>
-                            <strong>IPC Nacional:</strong>
-                            {zona.referencia_ipc_nacional} (Base 2020)
-                        </p>
-                        <p>
-                            <strong>CBA Regional:</strong>
-                            ₡{safeFormat(zona.cba_per_capita_regional)} (Región
-                            {zona.region_inec})
-                        </p>
-                    </div>
+                        <span class="col-alimentacion value">
+                            ₡{safeFormat(zona.gastos.alimentacion)}
+                            {@html getComparisonIndicator(zona, "alimentacion")}
+                        </span>
+
+                        <span class="col-transporte value">
+                            ₡{safeFormat(zona.gastos.transporte)}
+                            {@html getComparisonIndicator(zona, "transporte")}
+                        </span>
+
+                        <span class="col-servicios value">
+                            ₡{safeFormat(zona.gastos.servicios)}
+                            {@html getComparisonIndicator(zona, "servicios")}
+                        </span>
+
+                        <span class="col-otros value">
+                            ₡{safeFormat(
+                                zona.gastos.ocio +
+                                    zona.gastos.salud +
+                                    zona.gastos.educacion +
+                                    zona.gastos.comunicaciones,
+                            )}
+                        </span>
+                    {:else if presentacionSeleccionada === "gasto_especifico" && gastoComparacionSeleccionada}
+                        <span class="col-especifico value">
+                            ₡{safeFormat(
+                                zona.gastos[gastoComparacionSeleccionada] || 0,
+                            )}
+                            {@html getComparisonIndicator(
+                                zona,
+                                gastoComparacionSeleccionada,
+                            )}
+                        </span>
+                    {/if}
                 </div>
             {/each}
+
+            <div class="references-table">
+                <h3>**Referencias Oficiales (INEC)**</h3>
+                <p>
+                    <strong>IPC Nacional:</strong>
+                    {zonasFiltradasActuales[0]?.referencia_ipc_nacional ||
+                        "N/A"} (Base 2020)
+                </p>
+                <p>
+                    <strong>CBA Regional:</strong>
+                    ₡{safeFormat(
+                        zonasFiltradasActuales[0]?.cba_per_capita_regional,
+                    ) || 0} (Región
+                    {zonasFiltradasActuales[0]?.region_inec || "N/A"})
+                </p>
+            </div>
         </div>
     {/if}
 </div>
 
 <style>
-    /* Estilos Globales y Tipografía */
+    /* ---------------------------------------------------------------------- */
+    /* 1. DEFINICIÓN DE VARIABLES DE TEMA (MODO CLARO Y OSCURO) */
+    /* ---------------------------------------------------------------------- */
+    /* Variables para el Modo Claro (Por Defecto) */
+    :root {
+        --bg-color: #f7f9fc;
+        --card-bg-color: #ffffff;
+        --text-color: #343a40;
+        --border-color: #e9ecef;
+        --shadow-color: rgba(0, 0, 0, 0.05);
+        --header-bg-color: #007bff;
+        --hover-row-bg: #f0f8ff;
+
+        /* Colores de Marca */
+        --color-primary: #007bff;
+        --color-secondary: #28a745;
+        --color-total: #17a2b8;
+        --color-github: #333;
+    }
+
+    /* Variables para el Modo Oscuro (Se aplica cuando <body> tiene la clase 'dark') */
+    :global(body.dark) {
+        --bg-color: #1a1a2e; /* Fondo oscuro */
+        --card-bg-color: #242440; /* Fondo de tarjetas más oscuro */
+        --text-color: #e6e6e6; /* Texto claro */
+        --border-color: #3f3f5a; /* Borde suave */
+        --shadow-color: rgba(0, 0, 0, 0.5);
+        --header-bg-color: #3f3f5a; /* Header oscuro */
+        --hover-row-bg: #3f3f5a; /* Hover oscuro */
+
+        --color-primary: #5078ff; /* Azul más claro para títulos */
+        --color-secondary: #58d68d; /* Verde más claro */
+        --color-total: #4dd0e1; /* Cyan más claro */
+        --color-github: #bbbbbb; /* Gris claro para íconos */
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* ESTILOS PARA EL BOTÓN DE TEMA */
+    /* ---------------------------------------------------------------------- */
+    .theme-toggle-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1001;
+    }
+    .theme-toggle-button {
+        padding: 8px 15px;
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+        border-radius: 50px;
+        cursor: pointer;
+        font-weight: 600;
+        transition:
+            background-color 0.3s,
+            border-color 0.3s;
+        box-shadow: 0 2px 4px var(--shadow-color);
+    }
+    .theme-toggle-button:hover {
+        opacity: 0.8;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* 2. ESTILOS GLOBALES Y DE TEMA */
+    /* ---------------------------------------------------------------------- */
     :global(body) {
         font-family: "Poppins", sans-serif;
-        background-color: #f7f9fc; /* Fondo azul muy claro */
+        background-color: var(--bg-color);
+        color: var(--text-color);
         margin: 0;
         padding: 0;
+        transition:
+            background-color 0.3s,
+            color 0.3s;
     }
 
-    /* Colores CR: Azul (Fondo/Botones), Verde (Éxito), Rojo (Alerta/Mal) */
-    :root {
-        --color-primary: #007bff; /* Azul vibrante */
-        --color-secondary: #28a745; /* Verde fuerte */
-        --color-total: #17a2b8; /* Cyan para Costo Total */
-        --color-github: #333; /* Gris oscuro para GitHub */
-        --color-background: #f7f9fc;
-        --color-text-dark: #343a40;
+    /* Contenido Principal */
+    .main-content {
+        padding: 20px 20px 60px;
+        max-width: 1200px;
+        margin: auto;
     }
 
-    /* Estilos de Bienvenida */
+    /* Los estilos de Bienvenida */
     .welcome {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: var(--color-background);
+        background-color: var(--bg-color);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -541,8 +576,8 @@
     .welcome-content {
         padding: 60px;
         border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        background: white;
+        box-shadow: 0 10px 25px var(--shadow-color);
+        background: var(--card-bg-color);
         max-width: 650px;
     }
     .welcome-content h1 {
@@ -551,7 +586,7 @@
         margin-bottom: 20px;
     }
 
-    /* GRUPO DE BOTONES DE BIENVENIDA (NUEVO) */
+    /* El GRUPO DE BOTONES DE BIENVENIDA */
     .button-group {
         display: flex;
         justify-content: center;
@@ -571,7 +606,7 @@
             background-color 0.3s,
             transform 0.2s,
             box-shadow 0.3s;
-        text-decoration: none; /* Para el <a> de GitHub */
+        text-decoration: none;
         display: inline-flex;
         align-items: center;
         white-space: nowrap;
@@ -580,7 +615,7 @@
     .start-button {
         background-color: var(--color-secondary);
         color: white;
-        box-shadow: 0 4px 6px rgba(40, 167, 69, 0.3);
+        box-shadow: 0 4px 6px var(--shadow-color);
     }
     .start-button:hover {
         background-color: #218838;
@@ -590,8 +625,17 @@
     .github-button {
         background-color: var(--color-github);
         color: white;
-        box-shadow: 0 4px 6px rgba(51, 51, 51, 0.3);
+        box-shadow: 0 4px 6px var(--shadow-color);
     }
+    /* Ajuste para el texto/ícono de GitHub en modo oscuro */
+    :global(body.dark) .github-button {
+        color: var(--bg-color);
+        background-color: var(--color-github);
+    }
+    :global(body.dark) .github-icon svg {
+        fill: var(--card-bg-color);
+    }
+
     .github-button:hover {
         background-color: #1a1a1a;
         transform: translateY(-2px);
@@ -602,17 +646,10 @@
         display: flex;
         align-items: center;
     }
-    /* El SVG toma el color del texto del botón */
     .github-icon svg {
         fill: white;
     }
 
-    /* Contenido Principal */
-    .main-content {
-        padding: 20px 20px 60px;
-        max-width: 1200px;
-        margin: auto;
-    }
     .header-group {
         display: flex;
         flex-direction: column;
@@ -641,7 +678,7 @@
         transition:
             background-color 0.3s,
             transform 0.2s;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 4px var(--shadow-color);
     }
     .back-button:hover {
         background-color: #5a6268;
@@ -655,14 +692,14 @@
         gap: 20px;
         margin-bottom: 40px;
         padding: 30px;
-        background: white;
+        background: var(--card-bg-color);
         border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 15px var(--shadow-color);
     }
     .control-label {
         display: block;
         font-weight: 600;
-        color: var(--color-text-dark);
+        color: var(--text-color);
         margin-bottom: 5px;
         font-size: 0.95em;
     }
@@ -670,9 +707,10 @@
         width: 100%;
         padding: 12px;
         border-radius: 8px;
-        border: 1px solid #ced4da;
-        background-color: #fff;
-        appearance: none; /* Oculta el estilo nativo */
+        border: 1px solid var(--border-color);
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        appearance: none;
         font-size: 1em;
     }
     .controls-container button:not(.back-button) {
@@ -696,13 +734,13 @@
     .chart-container {
         margin: 40px 0;
         padding: 30px;
-        background: white;
+        background: var(--card-bg-color);
         border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 15px var(--shadow-color);
         text-align: center;
     }
     .chart-container h2 {
-        color: var(--color-text-dark);
+        color: var(--text-color);
         font-size: 1.8em;
         margin-bottom: 5px;
     }
@@ -716,18 +754,18 @@
         margin: 20px auto 0;
     }
 
-    /* Listado y Ordenamiento */
+    /* El listado y Ordenamiento */
     .list-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin: 30px 0 20px;
         padding: 10px 0;
-        border-bottom: 2px solid #e9ecef;
+        border-bottom: 2px solid var(--border-color);
     }
     .list-header h3 {
         margin: 0;
-        color: var(--color-text-dark);
+        color: var(--text-color);
         font-weight: 600;
     }
     .orden-group {
@@ -749,124 +787,166 @@
         background-color: #0e8499;
     }
 
-    /* Estilos de Tarjetas */
-    .card-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        gap: 30px;
-    }
-    .card {
-        padding: 30px;
-        border-radius: 12px;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
-        background: white;
-        transition: transform 0.3s ease;
-        border-left: 5px solid var(--color-secondary);
-    }
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-    .card-header h2 {
-        color: var(--color-primary);
-        margin-top: 0;
-        border-bottom: 1px solid #f0f0f0;
-        padding-bottom: 10px;
-        font-size: 1.5em;
-        font-weight: 700;
+    /* ---------------------------------------------------------------------- */
+    /* 3. ESTILOS DE LISTA/TABLA */
+    /* ---------------------------------------------------------------------- */
+    .table-list-container {
+        margin-top: 5px;
+        background: var(--card-bg-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 15px var(--shadow-color);
+        overflow-x: auto;
+        font-size: 0.9em;
     }
 
-    /* Gasto Total Display */
-    .total-display {
-        font-size: 1.8em;
+    /* Definición de Columnas (GRID) para el modo de Desglose Completo (8 columnas) */
+    .table-header,
+    .table-row-list {
+        display: grid;
+        /* ✅ CORRECCIÓN ANCHO COLUMNA: Se ajusta de 1.4fr a 1.2fr para el texto "Distrito" */
+        grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 1fr 1fr;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid var(--border-color);
+        min-width: 1050px;
+    }
+
+    /* Ajuste de columnas para el modo 'Solo Costo Total' o 'Gasto Específico' */
+    .table-header:has(span.col-total:nth-child(3):last-child),
+    .table-row-list:has(span.col-total:nth-child(3):last-child) {
+        grid-template-columns: 1.5fr 1fr 1.5fr;
+        min-width: 500px;
+    }
+    .table-header:has(span.col-especifico),
+    .table-row-list:has(span.col-especifico) {
+        grid-template-columns: 1.5fr 1fr 1.2fr 1.5fr;
+        min-width: 650px;
+    }
+
+    /* Estilos del Encabezado */
+    .table-header {
+        background-color: var(--header-bg-color);
+        color: white;
         font-weight: 700;
-        color: var(--color-total);
-        margin: 15px 0 20px;
+        text-transform: uppercase;
+        font-size: 0.85em;
+        border-radius: 8px 8px 0 0;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    /* Estilos de las Filas de Datos */
+    .table-row-list {
+        transition: background-color 0.2s;
+    }
+    .table-row-list:hover {
+        background-color: var(--hover-row-bg);
+    }
+    .table-row-list:last-child {
+        border-bottom: none;
+    }
+
+    /* ESTILOS CLAVE PARA LA ALINEACIÓN INTERNA DE CELDAS */
+    .table-header span,
+    .table-row-list span {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-    }
-    .total-display .label {
-        font-size: 0.7em;
-        color: #6c757d;
-        font-weight: 600;
-    }
-    .total-display .value {
-        font-size: 1em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-right: 5px;
+        flex-shrink: 0;
+        flex-grow: 1;
     }
 
-    /* Desglose de Gastos */
-    .desglose-title {
-        color: var(--color-text-dark);
-        font-size: 1.2em;
-        font-weight: 600;
-        border-bottom: 1px dashed #e9ecef;
-        padding-bottom: 10px;
-        margin-bottom: 15px;
+    /* Alineación de Texto/Valores: Las zonas a la izquierda, los números a la derecha */
+    .col-zona,
+    .col-provincia {
+        justify-content: flex-start;
+        text-align: left;
     }
-    .gastos-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    .gastos-list li {
-        padding: 10px 0;
-        border-bottom: 1px dotted #e9ecef;
-        display: grid;
-        grid-template-columns: 1fr auto auto;
-        align-items: center;
-        font-size: 1em;
-        font-weight: 500;
-    }
-    .gastos-list li span:nth-child(2) {
-        font-weight: 600;
+
+    .col-total,
+    .col-vivienda,
+    .col-alimentacion,
+    .col-transporte,
+    .col-servicios,
+    .col-otros,
+    .col-especifico {
+        justify-content: flex-end;
         text-align: right;
     }
-    .gastos-list li .indicator {
-        margin-left: 10px;
-        width: 15px;
-    }
 
-    /* Referencias INEC */
-    .references {
-        margin-top: 25px;
-        border-top: 2px solid #f0f0f0;
-        padding-top: 15px;
-        font-size: 0.9em;
-        color: #6c757d;
+    /* Estilos de los valores (aplicados a los <span> en las filas) */
+    .value {
+        font-weight: 600;
+        color: var(--text-color);
     }
-    .references h3 {
-        color: var(--color-text-dark);
+    .value-total {
+        font-weight: 800;
+        color: var(--color-total);
         font-size: 1.1em;
-        margin-bottom: 10px;
     }
 
-    /* Indicadores */
+    /* Indicadores de comparación */
+    .indicator {
+        margin-left: 5px;
+        font-size: 0.8em;
+        width: 15px;
+        flex-shrink: 0;
+        text-align: center;
+    }
     .up-arrow {
         color: #dc3545; /* Rojo de Alerta */
         font-weight: bold;
-        font-size: 1.2em;
     }
     .down-arrow {
-        color: var(--color-secondary); /* Verde de Ahorro */
+        color: var(--color-secondary);
         font-weight: bold;
-        font-size: 1.2em;
     }
 
-    /* Responsive */
-    @media (max-width: 1000px) {
-        .controls-container {
-            grid-template-columns: repeat(2, 1fr);
+    /* Referencias INEC al final de la tabla */
+    .references-table {
+        margin-top: 10px;
+        border-top: 1px solid var(--border-color);
+        padding: 15px;
+        font-size: 0.9em;
+        color: var(--text-color);
+        opacity: 0.8;
+        grid-column: 1 / -1;
+    }
+    .references-table h3 {
+        color: var(--text-color);
+        font-size: 1em;
+        margin-bottom: 8px;
+    }
+
+    /* Responsive: Ocultar columnas en pantallas pequeñas */
+    @media (max-width: 1200px) {
+        .table-header:not(:has(span.col-especifico)),
+        .table-row-list:not(:has(span.col-especifico)) {
+            grid-template-columns: 1.5fr 1fr 1.2fr 1fr 1fr 1fr;
+            min-width: 800px;
         }
-        .controls-container button {
-            grid-column: 1 / -1;
+        .col-servicios,
+        .col-otros {
+            display: none;
         }
     }
 
     @media (max-width: 768px) {
-        .controls-container {
-            grid-template-columns: 1fr;
+        .table-header:not(:has(span.col-especifico)),
+        .table-row-list:not(:has(span.col-especifico)) {
+            grid-template-columns: 1.5fr 1.2fr 1fr 1fr;
+            min-width: 450px;
         }
+
+        .col-provincia,
+        .col-vivienda {
+            display: none;
+        }
+
         .list-header {
             flex-direction: column;
             align-items: flex-start;
@@ -897,6 +977,9 @@
         .github-button {
             width: 100%;
             justify-content: center;
+        }
+        .controls-container {
+            grid-template-columns: 1fr;
         }
     }
 </style>
