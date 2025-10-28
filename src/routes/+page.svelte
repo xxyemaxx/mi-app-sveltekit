@@ -1,6 +1,8 @@
 <script>
     // @ts-nocheck
-    // Importa mi componente de gráfico.
+    import { onMount } from "svelte";
+    // *** CAMBIO 1: Se importa el componente de comparación ***
+    import ComparisonChart from "$lib/components/ComparisonChart.svelte";
     import DistributionChart from "$lib/components/DistributionChart.svelte";
 
     // 1. CARGA DE DATOS (+page.js)
@@ -9,37 +11,57 @@
     const todasLasZonas = data?.costos || [];
     const promediosNacionales = data?.promedios || {};
 
-    // 2. ESTADOS
-    let mostrarBienvenida = true;
-    let provinciaSeleccionada = "";
-    let cantonSeleccionado = "";
-    let gastoComparacionSeleccionada = "";
-    let presentacionSeleccionada = "todas"; // 'todas', 'solo_total', 'gasto_especifico'
+    // 2. ESTADOS DE SELECCIÓN (ACTUALIZADO PARA COMPARACIÓN)
+    // --- ZONA 1 (Primer Filtro) ---
+    let provinciaSeleccionada1 = "";
+    let cantonSeleccionado1 = "";
+    // --- ZONA 2 (Segundo Filtro) ---
+    let provinciaSeleccionada2 = "";
+    let cantonSeleccionado2 = "";
 
-    let zonasFiltradasActuales = todasLasZonas;
-    let mostrarResultados = false;
+    // Filtros de Presentación
+    let gastoComparacionSeleccionada = "";
+    let presentacionSeleccionada = "todas"; // 'todas', 'solo_total', 'gasto_especifico', 'comparacion' (nuevo)
+
+    // ESTADOS DE RESULTADOS
+    let zonasFiltradasActuales = todasLasZonas; // Se mantiene para la tabla inferior
+    let zonasParaComparar = []; // Nuevo array para las dos zonas seleccionadas para el gráfico
+    let mostrarResults = true;
+
+    // Estados de Ordenamiento (Se mantienen para la tabla inferior)
     let criterioOrden = "costo";
     let direccionOrden = "desc";
     let categoriaComparacion = "costo_total_estimado";
 
-    // ✅ CORRECCIÓN MODO CLARO/OSCURO: ESTADO PARA EL TEMA
+    // MODO CLARO Y OSCURO
     let theme = "light";
 
-    // 3. DATOS REACTIVOS DE SELECTORES
+    // DATOS REACTIVOS Y DE SELECTORES
     $: todasLasProvincias = [
         ...new Set(todasLasZonas.map((z) => z.provincia)),
     ].sort();
 
-    $: cantonesDisponibles = todasLasZonas
+    // Cantones disponibles para el Filtro 1, basado en Provincia 1
+    $: cantonesDisponibles1 = todasLasZonas
         .filter((z) => {
-            if (provinciaSeleccionada) {
-                return z.provincia === provinciaSeleccionada;
+            if (provinciaSeleccionada1) {
+                return z.provincia === provinciaSeleccionada1;
             }
             return true;
         })
         .map((z) => z.distrito);
+    $: todosLosCantones1 = [...new Set(cantonesDisponibles1)].sort();
 
-    $: todosLosCantones = [...new Set(cantonesDisponibles)].sort();
+    // Cantones disponibles para el Filtro 2, basado en Provincia 2
+    $: cantonesDisponibles2 = todasLasZonas
+        .filter((z) => {
+            if (provinciaSeleccionada2) {
+                return z.provincia === provinciaSeleccionada2;
+            }
+            return true;
+        })
+        .map((z) => z.distrito);
+    $: todosLosCantones2 = [...new Set(cantonesDisponibles2)].sort();
 
     const opcionesTipoGasto = [
         { key: "", label: "-- SELECCIONE GASTO --" },
@@ -53,31 +75,151 @@
         { key: "comunicaciones", label: "Comunicaciones" },
     ];
 
-    // La lista de categorías para el selector de ordenamiento
     const categorias = opcionesTipoGasto.slice(1);
     categorias.unshift({
         key: "costo_total_estimado",
         label: "Costo Total Estimado",
     });
 
-    // 4. LÓGICA DE INTERFAZ Y FILTROS
-    const entrarAPagina = () => {
-        mostrarBienvenida = false;
-        aplicarFiltros();
+    // ====================================================================
+    // 💡 NUEVA LÓGICA DE PROMEDIO PARA COMPARACIÓN DE PROVINCIAS
+    // ====================================================================
+
+    const keysDeGasto = [
+        "vivienda",
+        "alimentacion",
+        "transporte",
+        "servicios",
+        "ocio",
+        "salud",
+        "educacion",
+        "comunicaciones",
+        "otros_gastos", // Usaremos 'otros_gastos' como suma para simplificar la comparación si es necesario, aunque en la tabla se calcula on-the-fly
+    ];
+
+    const calcularPromedioProvincia = (provincia) => {
+        const distritosDeProvincia = todasLasZonas.filter(
+            (z) => z.provincia === provincia,
+        );
+
+        if (distritosDeProvincia.length === 0) {
+            return null; // No hay datos para esta provincia
+        }
+
+        const gastosPromedio = {};
+        let costoTotalPromedio = 0;
+
+        // Itera sobre todas las claves de gasto para calcular el promedio
+        keysDeGasto.forEach((key) => {
+            if (key === "otros_gastos") return; // Se omite si se maneja diferente en la fuente de datos
+
+            const totalGasto = distritosDeProvincia.reduce(
+                (sum, zona) => sum + (zona.gastos?.[key] || 0),
+                0,
+            );
+            // Calcula el promedio del gasto específico
+            const promedio = totalGasto / distritosDeProvincia.length;
+            gastosPromedio[key] = promedio;
+            costoTotalPromedio += promedio;
+        });
+
+        // Retorna la estructura de datos como si fuera una 'Zona' o Distrito
+        return {
+            distrito: provincia, // Usamos el nombre de la provincia como 'distrito'
+            provincia: provincia,
+            costo_total_estimado: costoTotalPromedio,
+            gastos: gastosPromedio,
+            // Agregamos las referencias usando el primer distrito de la provincia
+            referencia_ipc_nacional:
+                distritosDeProvincia[0]?.referencia_ipc_nacional,
+            cba_per_capita_regional:
+                distritosDeProvincia[0]?.cba_per_capita_regional,
+            region_inec: distritosDeProvincia[0]?.region_inec,
+        };
+    };
+
+    // ====================================================================
+    // LA LÓGICA DE FILTROS Y BÚSQUEDA (MODIFICADA)
+    // ====================================================================
+
+    const buscarZona = (provincia, canton) => {
+        if (provincia && canton) {
+            // 1. Caso: Distrito Específico (Búsqueda directa)
+            return todasLasZonas.find(
+                (z) => z.provincia === provincia && z.distrito === canton,
+            );
+        }
+        if (provincia && !canton) {
+            // 2. Caso: Provincia Completa (Calcula el promedio)
+            return calcularPromedioProvincia(provincia);
+        }
+        return null;
     };
 
     const aplicarFiltros = () => {
+        // Lógica de COMPROBACIÓN y Preparación de Datos para Comparación
+        zonasParaComparar = [];
+
+        let zona1 = buscarZona(provinciaSeleccionada1, cantonSeleccionado1);
+        let zona2 = buscarZona(provinciaSeleccionada2, cantonSeleccionado2);
+
+        if (zona1) {
+            // El nombre de comparación debe ser la provincia si es un promedio, o Distrito, Provincia si es un distrito
+            const isProvincia1 = zona1.distrito === zona1.provincia;
+            const nombre = isProvincia1
+                ? zona1.provincia // Ej: San José
+                : `${zona1.distrito}, ${zona1.provincia}`; // Ej: San José Central, San José
+
+            zonasParaComparar.push({
+                ...zona1,
+                nombre_comparacion: nombre,
+            });
+        }
+        if (zona2) {
+            const isProvincia2 = zona2.distrito === zona2.provincia;
+            const nombre = isProvincia2
+                ? zona2.provincia
+                : `${zona2.distrito}, ${zona2.provincia}`;
+
+            zonasParaComparar.push({
+                ...zona2,
+                nombre_comparacion: nombre,
+            });
+        }
+
+        // Si se seleccionaron dos zonas, forzamos la presentación a 'comparacion'
+        if (zonasParaComparar.length === 2) {
+            presentacionSeleccionada = "comparacion";
+        } else if (zonasParaComparar.length === 1) {
+            // Si solo hay una, la usamos como base para el gráfico de distribución (como antes)
+            // Y nos aseguramos de que la tabla de abajo muestre solo esa zona o los distritos de esa provincia
+            presentacionSeleccionada = "todas";
+        } else {
+            // Si no hay ninguna selección, volvemos a mostrar toda la tabla
+            presentacionSeleccionada = "todas";
+        }
+
+        // Lógica de la TABLA INFERIOR (se mantiene la lógica original)
+        // La tabla inferior siempre lista distritos. Si se selecciona un solo distrito/provincia, se filtra la lista.
+        let filtroBaseProvincia =
+            provinciaSeleccionada1 || provinciaSeleccionada2;
+        let filtroBaseCanton = cantonSeleccionado1 || cantonSeleccionado2;
+
         let filtrosAplicados = todasLasZonas.filter((zona) => {
-            let coincideProvincia = provinciaSeleccionada
-                ? zona.provincia === provinciaSeleccionada
-                : true;
-            let coincideCanton = cantonSeleccionado
-                ? zona.distrito === cantonSeleccionado
-                : true;
-            return coincideProvincia && coincideCanton;
+            // Filtro por distrito específico
+            if (filtroBaseCanton) {
+                return zona.distrito === filtroBaseCanton;
+            }
+
+            // Filtro por provincia
+            if (filtroBaseProvincia) {
+                return zona.provincia === filtroBaseProvincia;
+            }
+
+            return true;
         });
 
-        // Lógica de Ordenamiento
+        // La Lógica de Ordenamiento (Se aplica a los datos de la tabla inferior)
         zonasFiltradasActuales = filtrosAplicados.sort((a, b) => {
             let valA, valB;
             const key =
@@ -102,12 +244,19 @@
             return 0;
         });
 
-        mostrarResultados = true;
+        mostrarResults = true;
     };
 
-    // Cuando cambia de provincia, Se resetea el cantón para evitar inconsistencias
-    $: if (provinciaSeleccionada) {
-        cantonSeleccionado = "";
+    // Cuando se cambia de provincia, Resetea el Cantón para evitar Inconsistencias
+    $: if (provinciaSeleccionada1 && cantonSeleccionado1) {
+        // No hacer nada si ambos están seleccionados, pero sí si solo cambia la provincia
+    } else if (provinciaSeleccionada1) {
+        cantonSeleccionado1 = "";
+    }
+    $: if (provinciaSeleccionada2 && cantonSeleccionado2) {
+        // No hacer nada si ambos están seleccionados
+    } else if (provinciaSeleccionada2) {
+        cantonSeleccionado2 = "";
     }
 
     const cambiarDireccion = (criterio) => {
@@ -120,7 +269,7 @@
         aplicarFiltros();
     };
 
-    // 5. LAS FUNCIONES DE FORMATO Y COMPARACIÓN
+    // LAS FUNCIONES DE FORMATO Y COMPARACIÓN
     const safeFormat = (value) => {
         const num = parseFloat(value) || 0;
         return num.toLocaleString("es-CR", {
@@ -149,18 +298,18 @@
         return '<span class="indicator">➖</span>';
     };
 
-    // 6. LÓGICA DEL GRÁFICO
-    $: zonaParaDistribucion =
-        zonasFiltradasActuales.length === 1 || cantonSeleccionado
-            ? zonasFiltradasActuales[0]
-            : {
-                  distrito: "Nacional (Promedio)",
-                  gastos: promediosNacionales?.gastos || {},
-                  costo_total_estimado:
-                      promediosNacionales?.costo_total_estimado,
-              };
+    // LA LÓGICA DEL GRÁFICO (ACTUALIZADA PARA LA ZONA DE DISTRIBUCIÓN O COMPARACIÓN)
+    $: zonaParaDistribucion = (zonasParaComparar.length === 1 &&
+        zonasParaComparar[0]) || {
+        distrito: "Nacional (Promedio)",
+        gastos: promediosNacionales?.gastos || {},
+        costo_total_estimado: promediosNacionales?.costo_total_estimado,
+    };
 
+    // Datos para el gráfico de distribución (solo si se selecciona 1 zona o ninguna)
     $: datosDistribucion = (() => {
+        if (zonasParaComparar.length === 2) return []; // No aplica la distribución simple
+
         let datosBase = [];
         const gastos = zonaParaDistribucion.gastos || {};
 
@@ -173,28 +322,14 @@
                 });
             }
         });
-        // Esto ordena por valor (mayor a menor) para el gráfico
         return datosBase.sort((a, b) => b.valor - a.valor);
     })();
 
-    // 7. LA FUNCIÓN DE NAVEGACIÓN
-    const goBack = () => {
-        // Si hay un historial previo, usamos la navegación del navegador
-        if (window.history.length > 1) {
-            window.history.back();
-        } else {
-            // Si no hay historial previo (ej: es la primera carga), volvemos a la pantalla de bienvenida.
-            mostrarBienvenida = true;
-            mostrarResultados = false;
-        }
-    };
-
-    // ✅ CORRECCIÓN MODO CLARO/OSCURO: FUNCIÓN PARA ALTERNAR EL TEMA
+    // MODO CLARO/OSCURO: FUNCIÓN PARA ALTERNAR EL TEMA
     const toggleTheme = () => {
         theme = theme === "light" ? "dark" : "light";
     };
 
-    // ✅ CORRECCIÓN MODO CLARO/OSCURO: ACCIÓN PARA APLICAR LA CLASE AL <body>
     function setBodyClass(node, currentTheme) {
         function update(newTheme) {
             document.body.className = newTheme;
@@ -203,11 +338,14 @@
 
         return {
             update,
-            destroy() {
-                // Limpieza si es necesaria
-            },
+            destroy() {},
         };
     }
+
+    // Ejecutamos la carga inicial al montar el componente.
+    onMount(() => {
+        aplicarFiltros();
+    });
 </script>
 
 <svelte:head>
@@ -230,121 +368,165 @@
     </button>
 </div>
 
-<div class="welcome" style="display: {mostrarBienvenida ? 'flex' : 'none'};">
-    <div class="welcome-content">
-        <h1>
-            ¡Compara y Descubra el Costo de Vida en Costa Rica por sus Zonas
-            Geográficas!
-        </h1>
-        <p>
-            Analiza el costo promedio de Vivienda, Alimentación, Transporte y
-            mas en sus diferentes provincias y distritos del país.
-        </p>
-
-        <div class="button-group">
-            <button on:click={entrarAPagina} class="start-button"
-                >Comenzar a Comparar</button
-            >
-            <a
-                href="https://github.com/xxyemaxx"
-                target="_blank"
-                class="github-button"
-            >
-                <span class="github-icon">
-                    <svg
-                        viewBox="0 0 16 16"
-                        width="16"
-                        height="16"
-                        fill="currentColor"
-                        aria-hidden="true"
-                    >
-                        <path
-                            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2.0-.21.15-.46.55-.38C13.71 14.53 16 11.54 16 8c0-4.42-3.58-8-8-8z"
-                        ></path>
-                    </svg>
-                </span>
-                Contacto
-            </a>
-        </div>
-    </div>
-</div>
-
-<div
-    class="main-content"
-    style="display: {!mostrarBienvenida ? 'block' : 'none'};"
->
+<div class="main-content">
     <div class="header-group">
-        <button on:click={goBack} class="back-button"> ⬅️ Volver </button>
         <h1 class="main-title">Costo de Vida por Zonas en Costa Rica</h1>
     </div>
 
-    <div class="controls-container">
-        <label class="control-label">
-            Provincia:
-            <select bind:value={provinciaSeleccionada}>
-                <option value="">-- SELECCIONE --</option>
-                {#each todasLasProvincias as provincia}
-                    <option value={provincia}>{provincia}</option>
-                {/each}
-            </select>
-        </label>
-
-        <label class="control-label">
-            Distrito:
-            <select
-                bind:value={cantonSeleccionado}
-                disabled={!provinciaSeleccionada}
-            >
-                <option value="">-- SELECCIONE --</option>
-                {#each todosLosCantones as canton}
-                    <option value={canton}>{canton}</option>
-                {/each}
-            </select>
-        </label>
-
-        <label class="control-label">
-            Tipo de Gasto:
-            <select bind:value={gastoComparacionSeleccionada}>
-                {#each opcionesTipoGasto as opcion}
-                    <option value={opcion.key}>{opcion.label}</option>
-                {/each}
-            </select>
-        </label>
-
-        <label class="control-label">
-            Presentación de Resultados:
-            <select bind:value={presentacionSeleccionada}>
-                <option value="todas">Costo Total + Desglose</option>
-                <option value="solo_total">Solo Costo Total</option>
-                <option value="gasto_especifico">Solo Gasto Específico</option>
-            </select>
-        </label>
-
-        <button on:click={aplicarFiltros}>Consultar Resultados</button>
+    <div class="intro-text">
+        <h2 class="intro-title">
+            ¡Compara y Descubra el Costo de Vida en Costa Rica por sus Zonas
+            Geográficas!
+        </h2>
+        <p class="intro-paragraph">
+            Analiza el costo promedio de Vivienda, Alimentación, Transporte y
+            más en sus diferentes provincias y distritos del país.
+        </p>
     </div>
 
-    {#if mostrarResultados}
-        <div class="chart-container">
-            <h2>
-                Grafico y Distribución de Gastos ({zonaParaDistribucion.distrito})
-                📊
-            </h2>
-            <p class="chart-subtitle">
-                Costo Total Estimado: ₡{safeFormat(
-                    zonaParaDistribucion.costo_total_estimado,
-                )}
-            </p>
-            <div class="chart-area">
-                {#if datosDistribucion.length > 0}
-                    <DistributionChart
-                        data={datosDistribucion}
-                        total={zonaParaDistribucion.costo_total_estimado}
-                    />
-                {:else}
-                    <p>No hay datos de distribución disponibles.</p>
-                {/if}
-            </div>
+    <div class="controls-container comparison-controls">
+        <div class="comparison-group zone-a">
+            <h4 class="comparison-title">Zona A (Base)</h4>
+            <label class="control-label">
+                Provincia A:
+                <select bind:value={provinciaSeleccionada1}>
+                    <option value="">-- SELECCIONE --</option>
+                    {#each todasLasProvincias as provincia}
+                        <option value={provincia}>{provincia}</option>
+                    {/each}
+                </select>
+            </label>
+
+            <label class="control-label">
+                Distrito A:
+                <select
+                    bind:value={cantonSeleccionado1}
+                    disabled={!provinciaSeleccionada1}
+                >
+                    <option value="">-- SELECCIONE --</option>
+                    {#each todosLosCantones1 as canton}
+                        <option value={canton}>{canton}</option>
+                    {/each}
+                </select>
+            </label>
         </div>
+
+        <div class="separator-vs">
+            <span class="vs-text">VS</span>
+        </div>
+
+        <div class="comparison-group zone-b">
+            <h4 class="comparison-title">Zona B (Comparar)</h4>
+            <label class="control-label">
+                Provincia B:
+                <select bind:value={provinciaSeleccionada2}>
+                    <option value="">-- SELECCIONE --</option>
+                    {#each todasLasProvincias as provincia}
+                        <option value={provincia}>{provincia}</option>
+                    {/each}
+                </select>
+            </label>
+
+            <label class="control-label">
+                Distrito B:
+                <select
+                    bind:value={cantonSeleccionado2}
+                    disabled={!provinciaSeleccionada2}
+                >
+                    <option value="">-- SELECCIONE --</option>
+                    {#each todosLosCantones2 as canton}
+                        <option value={canton}>{canton}</option>
+                    {/each}
+                </select>
+            </label>
+        </div>
+
+        <div class="presentation-options">
+            <label class="control-label">
+                Tipo de Gasto:
+                <select bind:value={gastoComparacionSeleccionada}>
+                    {#each opcionesTipoGasto as opcion}
+                        <option value={opcion.key}>{opcion.label}</option>
+                    {/each}
+                </select>
+            </label>
+        </div>
+
+        <button on:click={aplicarFiltros}>
+            Consultar Resultados
+            {#if zonasParaComparar.length === 2}
+                (Comparar Zonas)
+            {:else}
+                (Filtrar Tabla)
+            {/if}
+        </button>
+    </div>
+    {#if mostrarResults}
+        {#if presentacionSeleccionada === "comparacion" && zonasParaComparar.length === 2}
+            <div class="chart-container comparison-view">
+                <h2>
+                    Comparación de Costo Total Estimado:
+                    <span class="zone-a-name"
+                        >{zonasParaComparar[0].nombre_comparacion}</span
+                    >
+                    vs
+                    <span class="zone-b-name"
+                        >{zonasParaComparar[1].nombre_comparacion}</span
+                    >
+                    <span class="flag">🇨🇷</span>
+                </h2>
+                <div class="comparison-total-boxes">
+                    <div class="comparison-box box-a">
+                        <span class="box-label"
+                            >{zonasParaComparar[0].nombre_comparacion}</span
+                        >
+                        <span class="box-value"
+                            >₡{safeFormat(
+                                zonasParaComparar[0].costo_total_estimado,
+                            )}</span
+                        >
+                    </div>
+                    <div class="comparison-box box-b">
+                        <span class="box-label"
+                            >{zonasParaComparar[1].nombre_comparacion}</span
+                        >
+                        <span class="box-value"
+                            >₡{safeFormat(
+                                zonasParaComparar[1].costo_total_estimado,
+                            )}</span
+                        >
+                    </div>
+                </div>
+
+                <ComparisonChart
+                    data={zonasParaComparar}
+                    categoria={gastoComparacionSeleccionada}
+                />
+            </div>
+        {:else}
+            <div class="chart-container">
+                <h2>
+                    Gráfico y Distribución de Gastos (
+                    {zonaParaDistribucion.distrito}
+                    ) 📊
+                </h2>
+                <p class="chart-subtitle">
+                    Costo Total Estimado: ₡{safeFormat(
+                        zonaParaDistribucion.costo_total_estimado,
+                    )}
+                </p>
+                <div class="chart-area">
+                    {#if datosDistribucion.length > 0}
+                        <DistributionChart
+                            data={datosDistribucion}
+                            total={zonaParaDistribucion.costo_total_estimado}
+                        />
+                    {:else}
+                        <p>No hay datos de distribución disponibles.</p>
+                    {/if}
+                </div>
+            </div>
+        {/if}
 
         <div class="list-header">
             <h3>
@@ -380,19 +562,14 @@
                 <span class="col-zona">Distrito</span>
                 <span class="col-provincia">Provincia</span>
                 <span class="col-total">Costo Total Estimado</span>
-                {#if presentacionSeleccionada === "todas"}
+                {#if presentacionSeleccionada !== "solo_total"}
                     <span class="col-vivienda">Vivienda</span>
                     <span class="col-alimentacion">Alimentación</span>
                     <span class="col-transporte">Transporte</span>
                     <span class="col-servicios">Servicios</span>
                     <span class="col-otros">Otros Gastos</span>
-                {:else if presentacionSeleccionada === "gasto_especifico" && gastoComparacionSeleccionada}
-                    <span class="col-especifico"
-                        >{categorias.find(
-                            (c) => c.key === gastoComparacionSeleccionada,
-                        )?.label || "Gasto"}</span
-                    >
                 {/if}
+                {#if presentacionSeleccionada === "gasto_especifico" && gastoComparacionSeleccionada}{/if}
             </div>
 
             {#each zonasFiltradasActuales as zona}
@@ -413,7 +590,7 @@
                         )}
                     </span>
 
-                    {#if presentacionSeleccionada === "todas"}
+                    {#if presentacionSeleccionada !== "solo_total"}
                         <span class="col-vivienda value">
                             ₡{safeFormat(zona.gastos.vivienda)}
                             {@html getComparisonIndicator(zona, "vivienda")}
@@ -442,16 +619,6 @@
                                     zona.gastos.comunicaciones,
                             )}
                         </span>
-                    {:else if presentacionSeleccionada === "gasto_especifico" && gastoComparacionSeleccionada}
-                        <span class="col-especifico value">
-                            ₡{safeFormat(
-                                zona.gastos[gastoComparacionSeleccionada] || 0,
-                            )}
-                            {@html getComparisonIndicator(
-                                zona,
-                                gastoComparacionSeleccionada,
-                            )}
-                        </span>
                     {/if}
                 </div>
             {/each}
@@ -477,7 +644,7 @@
 
 <style>
     /* ---------------------------------------------------------------------- */
-    /* 1. DEFINICIÓN DE VARIABLES DE TEMA (MODO CLARO Y OSCURO) */
+    /* DEFINICIÓN DE VARIABLES DE TEMA (MODO CLARO Y OSCURO) */
     /* ---------------------------------------------------------------------- */
     /* Variables para el Modo Claro (Por Defecto) */
     :root {
@@ -494,27 +661,76 @@
         --color-secondary: #28a745;
         --color-total: #17a2b8;
         --color-github: #333;
+
+        /* Colores de Comparación */
+        --color-zone-a: #007bff; /* Azul */
+        --color-zone-b: #ff5722; /* Naranja */
     }
 
     /* Variables para el Modo Oscuro (Se aplica cuando <body> tiene la clase 'dark') */
     :global(body.dark) {
-        --bg-color: #1a1a2e; /* Fondo oscuro */
-        --card-bg-color: #242440; /* Fondo de tarjetas más oscuro */
-        --text-color: #e6e6e6; /* Texto claro */
-        --border-color: #3f3f5a; /* Borde suave */
+        --bg-color: #1a1a2e;
+        --card-bg-color: #242440;
+        --text-color: #e6e6e6;
+        --border-color: #3f3f5a;
         --shadow-color: rgba(0, 0, 0, 0.5);
-        --header-bg-color: #3f3f5a; /* Header oscuro */
-        --hover-row-bg: #3f3f5a; /* Hover oscuro */
+        --header-bg-color: #3f3f5a;
+        --hover-row-bg: #3f3f5a;
 
-        --color-primary: #5078ff; /* Azul más claro para títulos */
-        --color-secondary: #58d68d; /* Verde más claro */
-        --color-total: #4dd0e1; /* Cyan más claro */
-        --color-github: #bbbbbb; /* Gris claro para íconos */
+        --color-primary: #5078ff;
+        --color-secondary: #58d68d;
+        --color-total: #4dd0e1;
+        --color-github: #bbbbbb;
+
+        /* Colores de Comparación */
+        --color-zone-a: #5078ff; /* Azul Claro */
+        --color-zone-b: #ff9800; /* Naranja Claro */
     }
 
     /* ---------------------------------------------------------------------- */
-    /* ESTILOS PARA EL BOTÓN DE TEMA */
+    /* ESTILOS GLOBALES Y DE TEMA */
     /* ---------------------------------------------------------------------- */
+    :global(body) {
+        font-family: "Poppins", sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        margin: 0;
+        padding: 0;
+        transition:
+            background-color 0.3s,
+            color 0.3s;
+    }
+
+    /* Contenido Principal */
+    .main-content {
+        padding: 20px 20px 60px;
+        max-width: 1200px;
+        margin: auto;
+    }
+
+    /* Estilos de Texto y Encabezados */
+    .intro-text {
+        text-align: center;
+        max-width: 900px;
+        margin: -10px auto 40px;
+        padding: 0 15px;
+    }
+    .intro-title {
+        font-size: 1.5em;
+        font-weight: 600;
+        color: var(--color-secondary);
+        margin: 0;
+        line-height: 1.3;
+    }
+    .intro-paragraph {
+        font-size: 1em;
+        color: var(--text-color);
+        opacity: 0.9;
+        margin-top: 5px;
+        font-weight: 400;
+    }
+
+    /* Tema y Botón */
     .theme-toggle-container {
         position: fixed;
         top: 20px;
@@ -538,118 +754,6 @@
         opacity: 0.8;
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* 2. ESTILOS GLOBALES Y DE TEMA */
-    /* ---------------------------------------------------------------------- */
-    :global(body) {
-        font-family: "Poppins", sans-serif;
-        background-color: var(--bg-color);
-        color: var(--text-color);
-        margin: 0;
-        padding: 0;
-        transition:
-            background-color 0.3s,
-            color 0.3s;
-    }
-
-    /* Contenido Principal */
-    .main-content {
-        padding: 20px 20px 60px;
-        max-width: 1200px;
-        margin: auto;
-    }
-
-    /* Los estilos de Bienvenida */
-    .welcome {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: var(--bg-color);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        text-align: center;
-    }
-    .welcome-content {
-        padding: 60px;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px var(--shadow-color);
-        background: var(--card-bg-color);
-        max-width: 650px;
-    }
-    .welcome-content h1 {
-        font-size: 2.5em;
-        color: var(--color-primary);
-        margin-bottom: 20px;
-    }
-
-    /* El GRUPO DE BOTONES DE BIENVENIDA */
-    .button-group {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-        margin-top: 30px;
-    }
-
-    .start-button,
-    .github-button {
-        padding: 15px 30px;
-        border: none;
-        border-radius: 50px;
-        cursor: pointer;
-        font-size: 1.1em;
-        font-weight: 600;
-        transition:
-            background-color 0.3s,
-            transform 0.2s,
-            box-shadow 0.3s;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        white-space: nowrap;
-    }
-
-    .start-button {
-        background-color: var(--color-secondary);
-        color: white;
-        box-shadow: 0 4px 6px var(--shadow-color);
-    }
-    .start-button:hover {
-        background-color: #218838;
-        transform: translateY(-2px);
-    }
-
-    .github-button {
-        background-color: var(--color-github);
-        color: white;
-        box-shadow: 0 4px 6px var(--shadow-color);
-    }
-    /* Ajuste para el texto/ícono de GitHub en modo oscuro */
-    :global(body.dark) .github-button {
-        color: var(--bg-color);
-        background-color: var(--color-github);
-    }
-    :global(body.dark) .github-icon svg {
-        fill: var(--card-bg-color);
-    }
-
-    .github-button:hover {
-        background-color: #1a1a1a;
-        transform: translateY(-2px);
-    }
-
-    .github-icon {
-        margin-right: 8px;
-        display: flex;
-        align-items: center;
-    }
-    .github-icon svg {
-        fill: white;
-    }
-
     .header-group {
         display: flex;
         flex-direction: column;
@@ -663,323 +767,373 @@
         font-size: 2.5em;
         font-weight: 700;
         margin: 0;
-    }
-    .back-button {
-        position: absolute;
-        left: 0;
-        top: 10px;
-        padding: 8px 15px;
-        background-color: #6c757d; /* Gris para neutralidad */
-        color: white;
-        border: none;
-        border-radius: 50px;
-        cursor: pointer;
-        font-weight: 600;
-        transition:
-            background-color 0.3s,
-            transform 0.2s;
-        box-shadow: 0 2px 4px var(--shadow-color);
-    }
-    .back-button:hover {
-        background-color: #5a6268;
-        transform: scale(1.05);
+        width: 100%;
     }
 
-    /* Controles y Filtros */
+    /* ---------------------------------------------------------------------- */
+    /* NUEVOS ESTILOS PARA LA COMPARACIÓN EN CONTROLES */
+    /* ---------------------------------------------------------------------- */
     .controls-container {
+        /* Se ajusta el grid para la vista de comparación */
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: 2fr 0.2fr 2fr 1.6fr; /* 4 columnas para 2 bloques de 2, separador y presentación */
         gap: 20px;
-        margin-bottom: 40px;
-        padding: 30px;
+        margin-bottom: 30px;
+        padding: 25px;
         background: var(--card-bg-color);
         border-radius: 12px;
         box-shadow: 0 4px 15px var(--shadow-color);
+    }
+
+    .comparison-group {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        padding: 0 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 15px;
+    }
+    .comparison-title {
+        font-size: 1.1em;
+        font-weight: 700;
+        margin: 0 0 10px 0;
+        text-align: center;
+    }
+    .zone-a .comparison-title {
+        color: var(--color-zone-a);
+    }
+    .zone-b .comparison-title {
+        color: var(--color-zone-b);
+    }
+
+    .separator-vs {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* Ocupa el espacio entre los grupos */
+        grid-column: 2 / 3;
+    }
+    .vs-text {
+        font-size: 1.5em;
+        font-weight: 800;
+        color: var(--color-total);
+        padding: 5px;
+        border-radius: 4px;
+    }
+    .presentation-options {
+        /* Posiciona las opciones de gasto */
+        grid-column: 4 / 5;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    /* El botón de consulta ahora ocupa todo el ancho inferior */
+    .controls-container button {
+        grid-column: 1 / -1;
+        padding: 12px;
+        background-color: var(--color-secondary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 600;
+        transition: background-color 0.3s;
+        margin-top: 5px;
+    }
+    .controls-container button:hover {
+        background-color: #218838;
+    }
+    .controls-container select {
+        /* Estilos de select se mantienen */
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
+        appearance: none;
+        font-size: 0.95em;
     }
     .control-label {
         display: block;
         font-weight: 600;
         color: var(--text-color);
         margin-bottom: 5px;
-        font-size: 0.95em;
-    }
-    .controls-container select {
-        width: 100%;
-        padding: 12px;
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
-        background-color: var(--card-bg-color);
-        color: var(--text-color);
-        appearance: none;
-        font-size: 1em;
-    }
-    .controls-container button:not(.back-button) {
-        grid-column: 1 / -1;
-        padding: 15px;
-        background-color: var(--color-secondary);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 1.1em;
-        font-weight: 600;
-        transition: background-color 0.3s;
-        margin-top: 10px;
-    }
-    .controls-container button:not(.back-button):hover {
-        background-color: #218838;
+        font-size: 0.9em;
     }
 
-    /* Gráfico */
+    /* ---------------------------------------------------------------------- */
+    /* NUEVOS ESTILOS PARA EL GRÁFICO DE COMPARACIÓN (Total) */
+    /* ---------------------------------------------------------------------- */
     .chart-container {
-        margin: 40px 0;
-        padding: 30px;
+        margin: 25px 0 15px;
+        padding: 15px;
         background: var(--card-bg-color);
         border-radius: 12px;
         box-shadow: 0 4px 15px var(--shadow-color);
         text-align: center;
     }
-    .chart-container h2 {
+    .comparison-view h2 {
+        font-size: 1.6em;
+        margin-bottom: 20px;
+        font-weight: 700;
+    }
+    .zone-a-name {
+        color: var(--color-zone-a);
+    }
+    .zone-b-name {
+        color: var(--color-zone-b);
+    }
+
+    .comparison-total-boxes {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-bottom: 30px;
+    }
+
+    .comparison-box {
+        flex: 0 0 45%;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px var(--shadow-color);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .box-a {
+        background-color: color-mix(
+            in srgb,
+            var(--color-zone-a) 15%,
+            var(--card-bg-color)
+        );
+        border: 2px solid var(--color-zone-a);
         color: var(--text-color);
-        font-size: 1.8em;
+    }
+    .box-b {
+        background-color: color-mix(
+            in srgb,
+            var(--color-zone-b) 15%,
+            var(--card-bg-color)
+        );
+        border: 2px solid var(--color-zone-b);
+        color: var(--text-color);
+    }
+    .box-label {
+        font-size: 1.1em;
+        font-weight: 600;
         margin-bottom: 5px;
+        opacity: 0.8;
+    }
+    .box-value {
+        font-size: 2.2em;
+        font-weight: 800;
+        color: var(--color-total);
+    }
+    .chart-disclaimer {
+        margin-top: 15px;
+        font-style: italic;
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+
+    /* ---------------------------------------------------------------------- */
+    /* ESTILOS DEL GRÁFICO DE DISTRIBUCIÓN (Se mantienen) */
+    /* ---------------------------------------------------------------------- */
+    .chart-container h2 {
+        color: var(--color-primary);
+        font-size: 1.5em;
+        margin: 0 0 5px 0;
+        font-weight: 700;
     }
     .chart-subtitle {
         color: var(--color-secondary);
+        font-size: 1.1em;
         font-weight: 600;
+        margin-top: 0;
         margin-bottom: 20px;
     }
     .chart-area {
-        max-width: 900px;
-        margin: 20px auto 0;
+        height: 350px;
+        width: 100%;
+        margin: auto;
     }
+    /* El estilo de los gráficos de distribución (si fuera una librería como Chart.js) se manejaría aquí. */
 
-    /* El listado y Ordenamiento */
+    /* ---------------------------------------------------------------------- */
+    /* ESTILOS DE LA TABLA (LISTA) */
+    /* ---------------------------------------------------------------------- */
     .list-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin: 30px 0 20px;
-        padding: 10px 0;
-        border-bottom: 2px solid var(--border-color);
+        margin: 25px 0 15px;
+        padding: 0 10px;
+        flex-wrap: wrap;
     }
     .list-header h3 {
-        margin: 0;
+        font-size: 1.2em;
         color: var(--text-color);
         font-weight: 600;
+        margin: 5px 0;
     }
     .orden-group {
         display: flex;
-        gap: 10px;
+        gap: 15px;
         align-items: center;
+    }
+    .orden-group label {
+        font-size: 0.9em;
+        font-weight: 600;
+    }
+    .orden-group select {
+        padding: 8px;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        background-color: var(--card-bg-color);
+        color: var(--text-color);
     }
     .sort-button {
         padding: 8px 15px;
         background-color: var(--color-total);
         color: white;
         border: none;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
         font-weight: 600;
+        font-size: 0.9em;
         transition: background-color 0.3s;
     }
     .sort-button:hover {
-        background-color: #0e8499;
+        background-color: #117a8b;
     }
 
-    /* ---------------------------------------------------------------------- */
-    /* 3. ESTILOS DE LISTA/TABLA */
-    /* ---------------------------------------------------------------------- */
     .table-list-container {
-        margin-top: 5px;
         background: var(--card-bg-color);
-        border-radius: 8px;
+        border-radius: 12px;
+        overflow: hidden;
         box-shadow: 0 4px 15px var(--shadow-color);
-        overflow-x: auto;
-        font-size: 0.9em;
     }
-
-    /* Definición de Columnas (GRID) para el modo de Desglose Completo (8 columnas) */
     .table-header,
     .table-row-list {
         display: grid;
-        /* ✅ CORRECCIÓN ANCHO COLUMNA: Se ajusta de 1.4fr a 1.2fr para el texto "Distrito" */
-        grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 1fr 1fr;
+        grid-template-columns: 1.5fr 1fr 1.5fr repeat(5, 1fr); /* 8 Columnas */
         align-items: center;
         padding: 12px 15px;
-        border-bottom: 1px solid var(--border-color);
-        min-width: 1050px;
+        text-align: center;
+        font-size: 0.9em;
     }
-
-    /* Ajuste de columnas para el modo 'Solo Costo Total' o 'Gasto Específico' */
-    .table-header:has(span.col-total:nth-child(3):last-child),
-    .table-row-list:has(span.col-total:nth-child(3):last-child) {
-        grid-template-columns: 1.5fr 1fr 1.5fr;
-        min-width: 500px;
-    }
-    .table-header:has(span.col-especifico),
-    .table-row-list:has(span.col-especifico) {
-        grid-template-columns: 1.5fr 1fr 1.2fr 1.5fr;
-        min-width: 650px;
-    }
-
-    /* Estilos del Encabezado */
     .table-header {
         background-color: var(--header-bg-color);
         color: white;
         font-weight: 700;
         text-transform: uppercase;
-        font-size: 0.85em;
-        border-radius: 8px 8px 0 0;
-        position: sticky;
-        top: 0;
-        z-index: 10;
+        letter-spacing: 0.5px;
     }
-
-    /* Estilos de las Filas de Datos */
     .table-row-list {
+        border-bottom: 1px solid var(--border-color);
         transition: background-color 0.2s;
-    }
-    .table-row-list:hover {
-        background-color: var(--hover-row-bg);
     }
     .table-row-list:last-child {
         border-bottom: none;
     }
-
-    /* ESTILOS CLAVE PARA LA ALINEACIÓN INTERNA DE CELDAS */
-    .table-header span,
-    .table-row-list span {
-        display: flex;
-        align-items: center;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding-right: 5px;
-        flex-shrink: 0;
-        flex-grow: 1;
+    .table-row-list:hover {
+        background-color: var(--hover-row-bg);
     }
-
-    /* Alineación de Texto/Valores: Las zonas a la izquierda, los números a la derecha */
-    .col-zona,
+    .col-zona {
+        text-align: left;
+        font-weight: 600;
+    }
     .col-provincia {
-        justify-content: flex-start;
         text-align: left;
     }
-
-    .col-total,
-    .col-vivienda,
-    .col-alimentacion,
-    .col-transporte,
-    .col-servicios,
-    .col-otros,
-    .col-especifico {
-        justify-content: flex-end;
-        text-align: right;
-    }
-
-    /* Estilos de los valores (aplicados a los <span> en las filas) */
     .value {
-        font-weight: 600;
-        color: var(--text-color);
+        font-weight: 500;
     }
     .value-total {
-        font-weight: 800;
+        font-weight: 700;
         color: var(--color-total);
         font-size: 1.1em;
     }
 
-    /* Indicadores de comparación */
+    /* Indicadores de Comparación (Flechas) */
     .indicator {
         margin-left: 5px;
         font-size: 0.8em;
-        width: 15px;
-        flex-shrink: 0;
-        text-align: center;
     }
-    .up-arrow {
-        color: #dc3545; /* Rojo de Alerta */
-        font-weight: bold;
+    :global(.up-arrow) {
+        color: #dc3545; /* Rojo - Más caro que el promedio */
     }
-    .down-arrow {
-        color: var(--color-secondary);
-        font-weight: bold;
+    :global(.down-arrow) {
+        color: var(--color-secondary); /* Verde - Más barato que el promedio */
     }
 
-    /* Referencias INEC al final de la tabla */
+    /* Referencias */
     .references-table {
-        margin-top: 10px;
-        border-top: 1px solid var(--border-color);
         padding: 15px;
-        font-size: 0.9em;
-        color: var(--text-color);
-        opacity: 0.8;
-        grid-column: 1 / -1;
+        background-color: color-mix(
+            in srgb,
+            var(--border-color) 40%,
+            var(--card-bg-color)
+        );
+        border-top: 1px solid var(--border-color);
+        text-align: left;
+        font-size: 0.85em;
+        line-height: 1.6;
     }
     .references-table h3 {
-        color: var(--text-color);
+        margin-top: 0;
         font-size: 1em;
-        margin-bottom: 8px;
+        font-weight: 600;
+        color: var(--color-primary);
     }
 
-    /* Responsive: Ocultar columnas en pantallas pequeñas */
-    @media (max-width: 1200px) {
-        .table-header:not(:has(span.col-especifico)),
-        .table-row-list:not(:has(span.col-especifico)) {
-            grid-template-columns: 1.5fr 1fr 1.2fr 1fr 1fr 1fr;
-            min-width: 800px;
+    /* Media Queries */
+    @media (max-width: 1000px) {
+        .table-header,
+        .table-row-list {
+            grid-template-columns: 1.5fr 1fr 1fr 1fr; /* Colapso de algunas columnas */
         }
+        .col-vivienda,
+        .col-alimentacion,
+        .col-transporte,
         .col-servicios,
         .col-otros {
             display: none;
         }
     }
-
     @media (max-width: 768px) {
-        .table-header:not(:has(span.col-especifico)),
-        .table-row-list:not(:has(span.col-especifico)) {
-            grid-template-columns: 1.5fr 1.2fr 1fr 1fr;
-            min-width: 450px;
-        }
-
-        .col-provincia,
-        .col-vivienda {
-            display: none;
-        }
-
-        .list-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 15px;
-        }
-        .main-title {
-            font-size: 2em;
-        }
-        .welcome-content {
-            padding: 30px;
-        }
-        .welcome-content h1 {
-            font-size: 2em;
-        }
-        .back-button {
-            position: static;
-            margin-bottom: 15px;
-            width: 100%;
-        }
-        .header-group {
-            align-items: center;
-        }
-        .button-group {
-            flex-direction: column;
-            gap: 15px;
-        }
-        .start-button,
-        .github-button {
-            width: 100%;
-            justify-content: center;
-        }
         .controls-container {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr; /* Una columna en móvil */
+        }
+        .separator-vs {
+            display: none; /* Ocultar el separador VS */
+        }
+        .controls-container button {
+            grid-column: auto;
+        }
+        .comparison-group,
+        .presentation-options {
+            padding: 10px;
+        }
+
+        .main-title {
+            font-size: 1.8em;
+        }
+        .intro-title {
+            font-size: 1.3em;
+        }
+
+        .comparison-total-boxes {
+            flex-direction: column;
+            gap: 20px;
+        }
+        .comparison-box {
+            flex: 1;
+            width: 100%;
         }
     }
 </style>
