@@ -1,3 +1,4 @@
+// @ts-nocheck
 import costoVidaData from "./costo-vida-cr.json"; // Asegúrate que el nombre del archivo sea correcto
 
 // Función para calcular la suma de una clave específica (total o gasto individual)

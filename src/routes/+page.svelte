@@ -1,47 +1,36 @@
 <script>
     // @ts-nocheck
     import { onMount } from "svelte";
-    // *** CAMBIO 1: Se importa el componente de comparación ***
     import ComparisonChart from "$lib/components/ComparisonChart.svelte";
     import DistributionChart from "$lib/components/DistributionChart.svelte";
 
-    // 1. CARGA DE DATOS (+page.js)
     export let data;
 
     const todasLasZonas = data?.costos || [];
     const promediosNacionales = data?.promedios || {};
 
-    // 2. ESTADOS DE SELECCIÓN (ACTUALIZADO PARA COMPARACIÓN)
-    // --- ZONA 1 (Primer Filtro) ---
     let provinciaSeleccionada1 = "";
     let cantonSeleccionado1 = "";
-    // --- ZONA 2 (Segundo Filtro) ---
     let provinciaSeleccionada2 = "";
     let cantonSeleccionado2 = "";
 
-    // Filtros de Presentación
     let gastoComparacionSeleccionada = "";
-    let presentacionSeleccionada = "todas"; // 'todas', 'solo_total', 'gasto_especifico', 'comparacion' (nuevo)
+    let presentacionSeleccionada = "todas";
 
-    // ESTADOS DE RESULTADOS
-    let zonasFiltradasActuales = todasLasZonas; // Se mantiene para la tabla inferior
-    let zonasParaComparar = []; // Nuevo array para las dos zonas seleccionadas para el gráfico
+    let zonasFiltradasActuales = todasLasZonas;
+    let zonasParaComparar = [];
     let mostrarResults = true;
 
-    // Estados de Ordenamiento (Se mantienen para la tabla inferior)
     let criterioOrden = "costo";
     let direccionOrden = "desc";
     let categoriaComparacion = "costo_total_estimado";
 
-    // MODO CLARO Y OSCURO
     let theme = "light";
 
-    // DATOS REACTIVOS Y DE SELECTORES
     $: todasLasProvincias = [
         ...new Set(todasLasZonas.map((z) => z.provincia)),
     ].sort();
 
-    // Cantones disponibles para el Filtro 1, basado en Provincia 1
     $: cantonesDisponibles1 = todasLasZonas
         .filter((z) => {
             if (provinciaSeleccionada1) {
@@ -52,7 +41,6 @@
         .map((z) => z.distrito);
     $: todosLosCantones1 = [...new Set(cantonesDisponibles1)].sort();
 
-    // Cantones disponibles para el Filtro 2, basado en Provincia 2
     $: cantonesDisponibles2 = todasLasZonas
         .filter((z) => {
             if (provinciaSeleccionada2) {
@@ -74,17 +62,11 @@
         { key: "educacion", label: "Educación" },
         { key: "comunicaciones", label: "Comunicaciones" },
     ];
-
     const categorias = opcionesTipoGasto.slice(1);
     categorias.unshift({
         key: "costo_total_estimado",
         label: "Costo Total Estimado",
     });
-
-    // ====================================================================
-    // 💡 NUEVA LÓGICA DE PROMEDIO PARA COMPARACIÓN DE PROVINCIAS
-    // ====================================================================
-
     const keysDeGasto = [
         "vivienda",
         "alimentacion",
@@ -94,42 +76,34 @@
         "salud",
         "educacion",
         "comunicaciones",
-        "otros_gastos", // Usaremos 'otros_gastos' como suma para simplificar la comparación si es necesario, aunque en la tabla se calcula on-the-fly
+        "otros_gastos",
     ];
-
     const calcularPromedioProvincia = (provincia) => {
         const distritosDeProvincia = todasLasZonas.filter(
             (z) => z.provincia === provincia,
         );
-
         if (distritosDeProvincia.length === 0) {
-            return null; // No hay datos para esta provincia
+            return null;
         }
 
         const gastosPromedio = {};
         let costoTotalPromedio = 0;
-
-        // Itera sobre todas las claves de gasto para calcular el promedio
         keysDeGasto.forEach((key) => {
-            if (key === "otros_gastos") return; // Se omite si se maneja diferente en la fuente de datos
+            if (key === "otros_gastos") return;
 
             const totalGasto = distritosDeProvincia.reduce(
                 (sum, zona) => sum + (zona.gastos?.[key] || 0),
                 0,
             );
-            // Calcula el promedio del gasto específico
             const promedio = totalGasto / distritosDeProvincia.length;
             gastosPromedio[key] = promedio;
             costoTotalPromedio += promedio;
         });
-
-        // Retorna la estructura de datos como si fuera una 'Zona' o Distrito
         return {
-            distrito: provincia, // Usamos el nombre de la provincia como 'distrito'
+            distrito: provincia,
             provincia: provincia,
             costo_total_estimado: costoTotalPromedio,
             gastos: gastosPromedio,
-            // Agregamos las referencias usando el primer distrito de la provincia
             referencia_ipc_nacional:
                 distritosDeProvincia[0]?.referencia_ipc_nacional,
             cba_per_capita_regional:
@@ -138,38 +112,26 @@
         };
     };
 
-    // ====================================================================
-    // LA LÓGICA DE FILTROS Y BÚSQUEDA (MODIFICADA)
-    // ====================================================================
-
     const buscarZona = (provincia, canton) => {
         if (provincia && canton) {
-            // 1. Caso: Distrito Específico (Búsqueda directa)
             return todasLasZonas.find(
                 (z) => z.provincia === provincia && z.distrito === canton,
             );
         }
         if (provincia && !canton) {
-            // 2. Caso: Provincia Completa (Calcula el promedio)
             return calcularPromedioProvincia(provincia);
         }
         return null;
     };
-
     const aplicarFiltros = () => {
-        // Lógica de COMPROBACIÓN y Preparación de Datos para Comparación
         zonasParaComparar = [];
-
         let zona1 = buscarZona(provinciaSeleccionada1, cantonSeleccionado1);
         let zona2 = buscarZona(provinciaSeleccionada2, cantonSeleccionado2);
-
         if (zona1) {
-            // El nombre de comparación debe ser la provincia si es un promedio, o Distrito, Provincia si es un distrito
             const isProvincia1 = zona1.distrito === zona1.provincia;
             const nombre = isProvincia1
-                ? zona1.provincia // Ej: San José
-                : `${zona1.distrito}, ${zona1.provincia}`; // Ej: San José Central, San José
-
+                ? zona1.provincia
+                : `${zona1.distrito}, ${zona1.provincia}`;
             zonasParaComparar.push({
                 ...zona1,
                 nombre_comparacion: nombre,
@@ -180,46 +142,35 @@
             const nombre = isProvincia2
                 ? zona2.provincia
                 : `${zona2.distrito}, ${zona2.provincia}`;
-
             zonasParaComparar.push({
                 ...zona2,
                 nombre_comparacion: nombre,
             });
         }
 
-        // Si se seleccionaron dos zonas, forzamos la presentación a 'comparacion'
         if (zonasParaComparar.length === 2) {
             presentacionSeleccionada = "comparacion";
         } else if (zonasParaComparar.length === 1) {
-            // Si solo hay una, la usamos como base para el gráfico de distribución (como antes)
-            // Y nos aseguramos de que la tabla de abajo muestre solo esa zona o los distritos de esa provincia
             presentacionSeleccionada = "todas";
         } else {
-            // Si no hay ninguna selección, volvemos a mostrar toda la tabla
             presentacionSeleccionada = "todas";
         }
 
-        // Lógica de la TABLA INFERIOR (se mantiene la lógica original)
-        // La tabla inferior siempre lista distritos. Si se selecciona un solo distrito/provincia, se filtra la lista.
         let filtroBaseProvincia =
             provinciaSeleccionada1 || provinciaSeleccionada2;
         let filtroBaseCanton = cantonSeleccionado1 || cantonSeleccionado2;
 
         let filtrosAplicados = todasLasZonas.filter((zona) => {
-            // Filtro por distrito específico
             if (filtroBaseCanton) {
                 return zona.distrito === filtroBaseCanton;
             }
 
-            // Filtro por provincia
             if (filtroBaseProvincia) {
                 return zona.provincia === filtroBaseProvincia;
             }
 
             return true;
         });
-
-        // La Lógica de Ordenamiento (Se aplica a los datos de la tabla inferior)
         zonasFiltradasActuales = filtrosAplicados.sort((a, b) => {
             let valA, valB;
             const key =
@@ -243,18 +194,14 @@
             if (valA > valB) return direccionOrden === "asc" ? 1 : -1;
             return 0;
         });
-
         mostrarResults = true;
     };
 
-    // Cuando se cambia de provincia, Resetea el Cantón para evitar Inconsistencias
     $: if (provinciaSeleccionada1 && cantonSeleccionado1) {
-        // No hacer nada si ambos están seleccionados, pero sí si solo cambia la provincia
     } else if (provinciaSeleccionada1) {
         cantonSeleccionado1 = "";
     }
     $: if (provinciaSeleccionada2 && cantonSeleccionado2) {
-        // No hacer nada si ambos están seleccionados
     } else if (provinciaSeleccionada2) {
         cantonSeleccionado2 = "";
     }
@@ -268,8 +215,6 @@
         }
         aplicarFiltros();
     };
-
-    // LAS FUNCIONES DE FORMATO Y COMPARACIÓN
     const safeFormat = (value) => {
         const num = parseFloat(value) || 0;
         return num.toLocaleString("es-CR", {
@@ -287,10 +232,8 @@
             key === "costo_total_estimado"
                 ? promediosNacionales.costo_total_estimado
                 : promediosNacionales.gastos?.[key] || 0;
-
         if (!promedioValor || promedioValor === 0) return "➖";
 
-        // Compara con una ventana del 5%
         if (zonaValor > promedioValor * 1.05)
             return '<span class="indicator up-arrow">⬆️</span>';
         if (zonaValor < promedioValor * 0.95)
@@ -298,17 +241,14 @@
         return '<span class="indicator">➖</span>';
     };
 
-    // LA LÓGICA DEL GRÁFICO (ACTUALIZADA PARA LA ZONA DE DISTRIBUCIÓN O COMPARACIÓN)
     $: zonaParaDistribucion = (zonasParaComparar.length === 1 &&
         zonasParaComparar[0]) || {
         distrito: "Nacional (Promedio)",
         gastos: promediosNacionales?.gastos || {},
         costo_total_estimado: promediosNacionales?.costo_total_estimado,
     };
-
-    // Datos para el gráfico de distribución (solo si se selecciona 1 zona o ninguna)
     $: datosDistribucion = (() => {
-        if (zonasParaComparar.length === 2) return []; // No aplica la distribución simple
+        if (zonasParaComparar.length === 2) return [];
 
         let datosBase = [];
         const gastos = zonaParaDistribucion.gastos || {};
@@ -324,8 +264,6 @@
         });
         return datosBase.sort((a, b) => b.valor - a.valor);
     })();
-
-    // MODO CLARO/OSCURO: FUNCIÓN PARA ALTERNAR EL TEMA
     const toggleTheme = () => {
         theme = theme === "light" ? "dark" : "light";
     };
@@ -342,7 +280,6 @@
         };
     }
 
-    // Ejecutamos la carga inicial al montar el componente.
     onMount(() => {
         aplicarFiltros();
     });
@@ -386,7 +323,7 @@
 
     <div class="controls-container comparison-controls">
         <div class="comparison-group zone-a">
-            <h4 class="comparison-title">Zona A (Base)</h4>
+            <h4 class="comparison-title">Provincia A</h4>
             <label class="control-label">
                 Provincia A:
                 <select bind:value={provinciaSeleccionada1}>
@@ -412,11 +349,11 @@
         </div>
 
         <div class="separator-vs">
-            <span class="vs-text">VS</span>
+            <span class="vs-text">y</span>
         </div>
 
         <div class="comparison-group zone-b">
-            <h4 class="comparison-title">Zona B (Comparar)</h4>
+            <h4 class="comparison-title">Provincia B</h4>
             <label class="control-label">
                 Provincia B:
                 <select bind:value={provinciaSeleccionada2}>
@@ -502,6 +439,67 @@
                     data={zonasParaComparar}
                     categoria={gastoComparacionSeleccionada}
                 />
+
+                {#if gastoComparacionSeleccionada === "" || gastoComparacionSeleccionada === "costo_total_estimado"}
+                    <div class="detailed-comparison-table-container">
+                        <h3>Desglose de Gastos por Categoría</h3>
+
+                        <table class="comparison-details-table">
+                            <thead>
+                                <tr>
+                                    <th>Categoría</th>
+                                    <th
+                                        >{zonasParaComparar[0]
+                                            .nombre_comparacion}</th
+                                    >
+                                    <th
+                                        >{zonasParaComparar[1]
+                                            .nombre_comparacion}</th
+                                    >
+                                    <th>Diferencia Absoluta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {#each categorias.filter((c) => c.key !== "costo_total_estimado") as categoria}
+                                    {@const valorA =
+                                        zonasParaComparar[0].gastos?.[
+                                            categoria.key
+                                        ] || 0}
+                                    {@const valorB =
+                                        zonasParaComparar[1].gastos?.[
+                                            categoria.key
+                                        ] || 0}
+                                    {@const diferencia = valorA - valorB}
+                                    {@const diferenciaAbsoluta =
+                                        Math.abs(diferencia)}
+
+                                    <tr>
+                                        <td>{categoria.label}</td>
+                                        <td>₡{safeFormat(valorA)}</td>
+                                        <td>₡{safeFormat(valorB)}</td>
+                                        <td
+                                            class:gasto-mas-alto={diferencia >
+                                                0}
+                                            class:gasto-mas-bajo={diferencia <
+                                                0}
+                                        >
+                                            {#if diferencia !== 0}
+                                                {@html diferencia > 0
+                                                    ? "⬆️"
+                                                    : "⬇️"}
+                                                ₡{safeFormat(
+                                                    diferenciaAbsoluta,
+                                                )}
+                                            {:else}
+                                                ➖
+                                            {/if}
+                                        </td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+                {/if}
             </div>
         {:else}
             <div class="chart-container">
@@ -655,13 +653,11 @@
         --shadow-color: rgba(0, 0, 0, 0.05);
         --header-bg-color: #007bff;
         --hover-row-bg: #f0f8ff;
-
         /* Colores de Marca */
         --color-primary: #007bff;
         --color-secondary: #28a745;
         --color-total: #17a2b8;
         --color-github: #333;
-
         /* Colores de Comparación */
         --color-zone-a: #007bff; /* Azul */
         --color-zone-b: #ff5722; /* Naranja */
@@ -940,6 +936,50 @@
         font-size: 0.9em;
     }
 
+    /* --- ESTILOS PARA LA TABLA DE DESGLOSE DE GASTOS ESPECÍFICOS (NUEVO) --- */
+    .detailed-comparison-table-container {
+        margin: 30px auto;
+        padding: 20px;
+        background-color: var(--card-bg-color); /* Fondo de tarjeta */
+        border-radius: 12px;
+        box-shadow: 0 4px 10px var(--shadow-color);
+    }
+    .detailed-comparison-table-container h3 {
+        text-align: center;
+        color: var(--color-primary);
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 1.4em;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 10px;
+    }
+
+    .comparison-details-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .comparison-details-table th,
+    .comparison-details-table td {
+        padding: 12px;
+        text-align: right;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .comparison-details-table th:first-child,
+    .comparison-details-table td:first-child {
+        text-align: left;
+    }
+
+    .comparison-details-table thead th {
+        background-color: var(--header-bg-color);
+        color: white;
+        font-weight: 700;
+    }
+
+    .comparison-details-table tbody tr:nth-child(even) {
+        background-color: var(--hover-row-bg);
+    }
+
     /* ---------------------------------------------------------------------- */
     /* ESTILOS DEL GRÁFICO DE DISTRIBUCIÓN (Se mantienen) */
     /* ---------------------------------------------------------------------- */
@@ -962,6 +1002,18 @@
         margin: auto;
     }
     /* El estilo de los gráficos de distribución (si fuera una librería como Chart.js) se manejaría aquí. */
+
+    /* --- FIX: TEMAS OSCUROS PARA LIBRERÍAS DE GRÁFICOS (Chart.js) --- */
+    /* Asegura que el texto y las líneas del gráfico sean visibles en modo oscuro */
+    :global(body.dark .chartjs-render-monitor) {
+        color: var(--text-color);
+    }
+    :global(body.dark .chartjs-render-monitor *) {
+        color: var(--text-color) !important;
+    }
+    :global(body.dark canvas) {
+        background-color: transparent !important;
+    }
 
     /* ---------------------------------------------------------------------- */
     /* ESTILOS DE LA TABLA (LISTA) */
@@ -1069,6 +1121,15 @@
     }
     :global(.down-arrow) {
         color: var(--color-secondary); /* Verde - Más barato que el promedio */
+    }
+    /* Reutilizar para la tabla comparativa */
+    .gasto-mas-alto {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .gasto-mas-bajo {
+        color: var(--color-secondary);
+        font-weight: bold;
     }
 
     /* Referencias */
