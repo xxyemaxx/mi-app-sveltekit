@@ -1,109 +1,108 @@
 <script>
     // @ts-nocheck
 
-    // @ts-ignore
-    export let data = []; // Prop: Array de rubros { rubro: string, valor: number, clave: string }
-    export let total = 1; // Prop: Costo total estimado
+    // Propiedades que recibe el componente desde +page.svelte
+    export let data = [];
+    export let total = 0;
 
-    // Mapeo de colores coherente con el CSS global
-    const colorMap = {
-        vivienda: "#4e79a7", // Azul
-        alimentacion: "#f28e2b", // Naranja
-        transporte: "#e15759", // Rojo
-        servicios: "#76b7b2", // Turquesa
-        ocio: "#59a14f", // Verde
-        // Si hay otros rubros, se les puede asignar un color neutro o expandir el mapa
-    };
-
-    // Formateo de valor
-    // @ts-ignore
-    const safeFormat = (value) => {
+    // FUNCIÓN CORREGIDA: Fuerza el redondeo del valor monetario a 0 decimales.
+    const formatValue = (value) => {
         const num = parseFloat(value) || 0;
         return num.toLocaleString("es-CR", {
-            style: "currency",
-            currency: "CRC",
             minimumFractionDigits: 0,
+            maximumFractionDigits: 0, // <<--- La clave de la solución anterior
         });
     };
-
-    // Calcula el valor máximo para normalizar las barras
-    // @ts-ignore
-    $: maxValue = Math.max(...data.map((d) => d.valor), 1);
-
-    // Función para obtener un color basado en la clave del rubro o un color por defecto
-    // @ts-ignore
-    const getColor = (clave) => colorMap[clave] || "#9d755d";
 </script>
 
-<div class="distribution-chart-viz">
-    {#each data as item}
-        <div class="bar-item">
-            <div class="label-info">
-                <span class="rubro-label">{item.rubro}</span>
-                <span class="rubro-value">
-                    {safeFormat(item.valor)}
-                    ({((item.valor / total) * 100).toFixed(1)}%)
-                </span>
-            </div>
+<div class="distribution-chart-container">
+    {#each data as rubro}
+        {@const percentage = (rubro.valor / total) * 100}
 
-            <div class="bar-wrapper">
+        <div class="rubro-item">
+            <span class="rubro-name">{rubro.rubro}</span>
+
+            <div class="bar-area">
                 <div
                     class="bar"
-                    style="
-                        width: {(item.valor / total) * 100}%; 
-                        background-color: {getColor(item.clave)};
-                        /* El 100% se basa en el total, no en el valor máximo para un desglose */
-                    "
+                    style="width: {percentage.toFixed(1)}%; 
+                           background-color: var(--color-total);"
                 ></div>
             </div>
+
+            <span class="rubro-value">
+                ₡{formatValue(rubro.valor)} ({percentage.toFixed(1)}%)
+            </span>
         </div>
     {/each}
 </div>
 
 <style>
-    .distribution-chart-viz {
-        padding: 10px;
+    /* Estilos generales del contenedor */
+    .distribution-chart-container {
         display: flex;
         flex-direction: column;
-        gap: 15px; /* Espacio entre cada rubro */
+        gap: 12px;
+        padding: 10px 0;
+        margin: 10px auto;
+        max-width: 600px;
     }
 
-    .bar-item {
-        display: flex;
-        flex-direction: column;
+    /* El grid que distribuye el nombre, la barra y el valor */
+    .rubro-item {
+        /* 1.5fr (Nombre) | 3fr (Barra) | 1.5fr (Valor y Porcentaje) */
+        display: grid;
+        grid-template-columns: 1.5fr 3fr 1.5fr;
+        align-items: center;
+        gap: 15px;
     }
 
-    .label-info {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 5px;
-        font-weight: 500;
+    /* Nombre del rubro (ej. Vivienda, Alimentación) */
+    .rubro-name {
+        font-weight: 600;
+        text-align: right;
         font-size: 0.9em;
+        color: var(--text-color);
     }
 
-    .rubro-label {
-        color: var(--color-text-dark);
-    }
-
-    .rubro-value {
-        font-weight: 700;
-        color: var(--color-text-dark);
-        opacity: 0.9;
-    }
-
-    .bar-wrapper {
-        height: 15px; /* Altura de la barra */
-        background-color: var(
-            --color-border-light
-        ); /* Fondo para mostrar el 100% */
+    /* Contenedor de la barra */
+    .bar-area {
+        height: 18px;
+        background-color: var(--border-color);
         border-radius: 4px;
         overflow: hidden;
     }
-
     .bar {
         height: 100%;
-        transition: width 0.8s ease-out; /* Animación al cargar */
-        border-radius: 4px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: width 0.5s ease;
+    }
+
+    /* Valor y Porcentaje */
+    .rubro-value {
+        font-size: 0.8em;
+        font-weight: 700;
+        text-align: left;
+        color: var(--color-primary);
+        white-space: nowrap;
+    }
+
+    /* Media Query para pantallas pequeñas */
+    @media (max-width: 600px) {
+        .rubro-item {
+            /* Colapsar a dos columnas y ocultar la barra si es necesario */
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+        .bar-area {
+            display: none; /* Oculta la barra en móvil para ganar espacio */
+        }
+        .rubro-name {
+            text-align: left;
+            font-size: 0.85em;
+        }
+        .rubro-value {
+            font-size: 0.75em;
+            text-align: right;
+        }
     }
 </style>

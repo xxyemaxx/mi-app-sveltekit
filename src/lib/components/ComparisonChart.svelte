@@ -1,333 +1,176 @@
 <script>
     // @ts-nocheck
+    import { scaleLinear } from "d3-scale";
+    import { max } from "d3-array";
 
-    /**
-     * @typedef {Object} ComparisonZone
-     * @property {string} nombre_comparacion - Nombre de la zona o provincia (Ej: San José, Heredia Centro, Heredia)
-     * @property {number} costo_total_estimado - El costo total de la zona
-     * @property {Object.<string, number>} gastos - Objeto con el desglose de gastos (vivienda, alimentacion, etc.)
-     *
-     * @type {ComparisonZone[]}
-     */
+    // Propiedades originales
     export let data = [];
+    export let categoria = "costo_total_estimado";
+    export let promedios = {};
 
-    /** @type {string} */
-    export let categoria = ""; // Clave del gasto a mostrar (vivienda, alimentacion, etc.)
+    // PROPIEDAD CLAVE AÑADIDA: Una función que le dice al gráfico cómo obtener el valor.
+    export let valueAccessor;
 
-    // Mapeo de claves a nombres legibles para la visualización
-    const categoriaLabels = {
-        vivienda: "Vivienda",
-        alimentacion: "Alimentación",
-        transporte: "Transporte",
-        servicios: "Servicios",
-        ocio: "Ocio",
-        salud: "Salud",
-        educacion: "Educación",
-        comunicaciones: "Comunicaciones",
-    };
+    const height = 200;
+    const margin = { top: 10, right: 10, bottom: 30, left: 100 };
+    const width = 600;
 
-    const keysDeGasto = [
-        "vivienda",
-        "alimentacion",
-        "transporte",
-        "servicios",
-        "ocio",
-        "salud",
-        "educacion",
-        "comunicaciones",
-    ];
+    // --- Lógica Reactiva ---
 
-    // Función de formato para números (igual que en +page.svelte)
-    const safeFormat = (value) => {
-        const num = parseFloat(value) || 0;
-        return num.toLocaleString("es-CR", {
+    // Obtener valores para el gráfico usando el valueAccessor
+    $: valores = data.map((d) => ({
+        nombre: d.nombre_comparacion || d.canton || d.provincia,
+        valor: valueAccessor(d), // USA LA FUNCIÓN PARA OBTENER EL VALOR
+        isPromedio: d.provincia === d.canton, // Marcador para promedios de provincia
+    }));
+
+    // Determinar el valor máximo para la escala (incluyendo el promedio nacional si existe)
+    $: maxDataValue = max(valores, (d) => d.valor);
+    $: maxNationalValue = promedios[categoria] || promedios.nacional || 0;
+    $: maxValue = Math.max(maxDataValue * 1.15, maxNationalValue * 1.15);
+
+    // Escala X
+    $: xScale = scaleLinear()
+        .domain([0, maxValue])
+        .range([0, width - margin.left - margin.right]);
+
+    // Formato de moneda para etiquetas
+    function formatCurrency(num) {
+        return new Intl.NumberFormat("es-CR", {
+            style: "currency",
+            currency: "CRC",
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
-        });
-    };
+        }).format(num);
+    }
 
-    // ====================================================================
-    // LÓGICA DE DATOS PARA LA TABLA/GRÁFICO
-    // ====================================================================
-
-    $: zona1 = data[0] || null;
-    $: zona2 = data[1] || null;
-
-    // Prepara los datos para la comparación
-    $: datosComparacion = (() => {
-        if (!zona1 || !zona2) return [];
-
-        let resultado = [];
-        const categoriasAComparar = categoria ? [categoria] : keysDeGasto;
-
-        categoriasAComparar.forEach((key) => {
-            const valor1 = zona1.gastos?.[key] || 0;
-            const valor2 = zona2.gastos?.[key] || 0;
-
-            if (valor1 > 0 || valor2 > 0) {
-                resultado.push({
-                    rubro: categoriaLabels[key] || key,
-                    key: key,
-                    valor1: valor1,
-                    valor2: valor2,
-                    diferencia: valor1 - valor2,
-                });
-            }
-        });
-
-        // Si es una categoría específica, ordenamos por esa categoría
-        if (categoria) {
-            return resultado;
-        }
-
-        // Si son todas, ordenamos por el promedio (solo si es la vista de desglose completo)
-        return resultado.sort(
-            (a, b) => b.valor1 + b.valor2 - (a.valor1 + a.valor2),
-        );
-    })();
-
-    // Calcula el valor máximo para normalizar las barras de la simulación
-    $: maxValor = datosComparacion.reduce((max, item) => {
-        return Math.max(max, item.valor1, item.valor2);
-    }, 0);
-
-    // Etiqueta del título basada en la selección
-    $: titulo = categoria
-        ? `Comparación en ${categoriaLabels[categoria]}`
-        : "Desglose Completo de Gastos";
+    // Obtener la etiqueta de la categoría seleccionada (para la línea de promedio)
+    $: categoriaKey = categoria;
+    $: promedioNacional = promedios[categoriaKey] || promedios.nacional;
 </script>
 
 <div class="comparison-chart-container">
-    <h3 class="chart-title">{titulo}</h3>
+    <svg viewBox="0 0 {width} {height}" class="chart-svg">
+        <g transform="translate({margin.left}, {margin.top})">
+            {#each valores as item, i}
+                <g
+                    class="bar-group"
+                    transform="translate(0, {((height -
+                        margin.top -
+                        margin.bottom) /
+                        data.length) *
+                        i})"
+                >
+                    <rect
+                        x={0}
+                        y={0}
+                        width={xScale(item.valor)}
+                        height={(height - margin.top - margin.bottom) /
+                            data.length -
+                            10}
+                        class="bar-rect"
+                        class:is-promedio={item.isPromedio}
+                    />
 
-    <div class="legend">
-        <span class="legend-item zone-a-name">
-            <span class="color-swatch a"></span>
-            {zona1 ? zona1.nombre_comparacion : "Zona A"}
-        </span>
-        <span class="legend-item zone-b-name">
-            <span class="color-swatch b"></span>
-            {zona2 ? zona2.nombre_comparacion : "Zona B"}
-        </span>
-    </div>
-
-    {#if datosComparacion.length > 0}
-        <div class="data-grid">
-            <div class="grid-header">
-                <div class="rubro-col">Rubro</div>
-                <div class="value-col">
-                    {zona1.nombre_comparacion}
-                </div>
-                <div class="bar-col">Visualización</div>
-                <div class="value-col">
-                    {zona2.nombre_comparacion}
-                </div>
-                <div class="diff-col">Diferencia (A-B)</div>
-            </div>
-
-            {#each datosComparacion as item (item.key)}
-                <div class="grid-row">
-                    <div class="rubro-col">
-                        <strong>{item.rubro}</strong>
-                    </div>
-
-                    <div class="value-col value-a">
-                        ₡{safeFormat(item.valor1)}
-                    </div>
-
-                    <div class="bar-col">
-                        <div class="bar-container">
-                            <div
-                                class="bar bar-a"
-                                style="width: {(item.valor1 / maxValor) * 100}%"
-                                title="{item.rubro} A: ₡{safeFormat(
-                                    item.valor1,
-                                )}"
-                            ></div>
-                            <div
-                                class="bar bar-b"
-                                style="width: {(item.valor2 / maxValor) * 100}%"
-                                title="{item.rubro} B: ₡{safeFormat(
-                                    item.valor2,
-                                )}"
-                            ></div>
-                        </div>
-                    </div>
-
-                    <div class="value-col value-b">
-                        ₡{safeFormat(item.valor2)}
-                    </div>
-
-                    <div
-                        class="diff-col"
-                        class:positive={item.diferencia > 0}
-                        class:negative={item.diferencia < 0}
+                    <text
+                        x={xScale(item.valor) + 5}
+                        y={(height - margin.top - margin.bottom) /
+                            data.length /
+                            2}
+                        alignment-baseline="middle"
+                        class="bar-value-label"
                     >
-                        {item.diferencia > 0
-                            ? "⬆️"
-                            : item.diferencia < 0
-                              ? "⬇️"
-                              : "➖"}
-                        ₡{safeFormat(Math.abs(item.diferencia))}
-                    </div>
-                </div>
+                        {formatCurrency(item.valor)}
+                    </text>
+
+                    <text
+                        x={-10}
+                        y={(height - margin.top - margin.bottom) /
+                            data.length /
+                            2}
+                        alignment-baseline="middle"
+                        text-anchor="end"
+                        class="bar-label"
+                    >
+                        {item.nombre}
+                    </text>
+                </g>
             {/each}
-        </div>
-    {:else}
-        <p class="no-data-msg">
-            Seleccione dos zonas o provincias válidas para realizar una
-            comparación.
-        </p>
-    {/if}
+
+            {#if promedioNacional && promedioNacional > 0}
+                <line
+                    x1={xScale(promedioNacional)}
+                    y1={0}
+                    x2={xScale(promedioNacional)}
+                    y2={height - margin.top - margin.bottom}
+                    class="average-line"
+                />
+                <text
+                    x={xScale(promedioNacional)}
+                    y={height - margin.top - margin.bottom + 5}
+                    text-anchor="middle"
+                    class="average-label"
+                >
+                    Promedio Nacional
+                </text>
+            {/if}
+
+            <line
+                x1={0}
+                y1={height - margin.top - margin.bottom}
+                x2={width - margin.left - margin.right}
+                y2={height - margin.top - margin.bottom}
+                stroke="#ccc"
+            />
+        </g>
+    </svg>
 </div>
 
 <style>
-    /* ---------------------------------------------------------------------- */
-    /* HEREDA VARIABLES DE TEMA DEL PADRE (+page.svelte) */
-    /* ---------------------------------------------------------------------- */
-
     .comparison-chart-container {
-        padding: 20px;
-        background: var(--card-bg-color);
-        border-radius: 8px;
+        font-family: Arial, sans-serif;
         margin-top: 20px;
-        box-shadow: 0 4px 10px var(--shadow-color);
+        overflow: hidden;
     }
-
-    .chart-title {
-        text-align: center;
-        color: var(--color-primary);
-        margin-bottom: 25px;
-        font-size: 1.4em;
-        font-weight: 700;
+    .chart-svg {
+        width: 100%;
+        height: 100%;
+        display: block;
     }
-
-    /* Leyenda */
-    .legend {
-        display: flex;
-        justify-content: center;
-        gap: 30px;
-        margin-bottom: 20px;
-        font-size: 0.9em;
+    .bar-rect {
+        fill: var(--color-secondary, #007bff);
+        height: 30px; /* Tamaño por defecto de las barras */
+        border-radius: 4px;
+        transition: all 0.5s ease-out;
     }
-    .legend-item {
-        display: flex;
-        align-items: center;
+    .bar-rect.is-promedio {
+        fill: var(--color-accent, #ffc107);
+    }
+    .bar-group:hover .bar-rect {
+        opacity: 0.8;
+    }
+    .bar-label {
+        font-size: 0.8em;
         font-weight: 600;
-        color: var(--text-color);
+        fill: var(--text-color, #333);
+        max-width: 100px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
-    .color-swatch {
-        width: 12px;
-        height: 12px;
-        border-radius: 3px;
-        margin-right: 8px;
-    }
-    .color-swatch.a {
-        background-color: var(--color-zone-a);
-    }
-    .color-swatch.b {
-        background-color: var(--color-zone-b);
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* ESTRUCTURA DE LA TABLA/GRID DE COMPARACIÓN */
-    /* ---------------------------------------------------------------------- */
-
-    .data-grid {
-        display: grid;
-        /* Definición de Columnas: Rubro | Valor A | Barra | Valor B | Diferencia */
-        grid-template-columns: 1.5fr 1fr 2.5fr 1fr 1.2fr;
-        font-size: 0.9em;
-        text-align: center;
-    }
-
-    .grid-header,
-    .grid-row {
-        display: contents; /* Permite que los hijos se coloquen directamente en las celdas del grid */
-    }
-
-    .grid-header {
-        font-weight: 700;
-        text-transform: uppercase;
-        background-color: var(--header-bg-color);
-        color: white;
-        padding: 8px 0;
-        border-radius: 4px 4px 0 0;
-        font-size: 0.75em;
-    }
-    .grid-header > div {
-        padding: 8px 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .grid-row > div {
-        padding: 10px 10px;
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        word-break: break-word; /* Para nombres largos */
-    }
-    .grid-row:nth-child(even) > div {
-        background-color: var(--hover-row-bg); /* Zebra striping */
-    }
-
-    .rubro-col {
-        justify-content: flex-start !important;
-        font-weight: 600;
-        padding-left: 20px !important;
-    }
-    .value-col {
+    .bar-value-label {
+        font-size: 0.8em;
+        fill: var(--text-color, #333);
         font-weight: 500;
     }
-
-    /* ---------------------------------------------------------------------- */
-    /* ESTILOS DE BARRA SIMULADA */
-    /* ---------------------------------------------------------------------- */
-    .bar-col {
-        padding: 5px 10px !important;
+    .average-line {
+        stroke: #dc3545;
+        stroke-width: 2px;
+        stroke-dasharray: 4 4;
     }
-    .bar-container {
-        width: 100%;
-        height: 35px; /* Altura fija para el contenedor de las dos barras */
-        display: flex;
-        flex-direction: column;
-        justify-content: space-around;
-        padding: 3px 0;
-    }
-    .bar {
-        height: 12px;
-        border-radius: 3px;
-        transition: width 0.5s ease-out;
-    }
-    .bar-a {
-        background-color: var(--color-zone-a);
-        margin-bottom: 2px;
-    }
-    .bar-b {
-        background-color: var(--color-zone-b);
-    }
-
-    /* ---------------------------------------------------------------------- */
-    /* ESTILOS DE DIFERENCIA */
-    /* ---------------------------------------------------------------------- */
-    .diff-col {
+    .average-label {
+        font-size: 0.7em;
+        fill: #dc3545;
         font-weight: 700;
-        font-size: 1em;
-    }
-    .diff-col.positive {
-        color: #dc3545; /* Rojo para A > B */
-    }
-    .diff-col.negative {
-        color: var(--color-secondary); /* Verde para A < B */
-    }
-
-    .no-data-msg {
-        text-align: center;
-        padding: 30px;
-        color: #6c757d;
-        font-style: italic;
     }
 </style>

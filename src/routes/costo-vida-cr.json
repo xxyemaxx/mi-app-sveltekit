@@ -1,64 +1,7 @@
 [
     {
-        "zona": 1,
-        "distrito": "San Rafael",
-        "provincia": "Alajuela",
-        "region_inec": "Central",
-        "costo_total_estimado": 940000,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 64746,
-        "gastos": {
-            "vivienda": 400000,
-            "alimentacion": 75000,
-            "transporte": 87500,
-            "servicios": 100000,
-            "salud": 32242,
-            "educacion": 50384,
-            "comunicaciones": 28012,
-            "ocio": 166862
-        }
-    },
-    {
-        "zona": 1,
-        "distrito": "Alajuela Centro",
-        "provincia": "Alajuela",
-        "region_inec": "Central",
-        "costo_total_estimado": 850000,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 64746,
-        "gastos": {
-            "vivienda": 350000,
-            "alimentacion": 120000,
-            "transporte": 60000,
-            "servicios": 150000,
-            "salud": 29155,
-            "educacion": 45560,
-            "comunicaciones": 25330,
-            "ocio": 79955
-        }
-    },
-    {
         "zona": 2,
-        "distrito": "Santa Ana",
-        "provincia": "San José",
-        "region_inec": "Central",
-        "costo_total_estimado": 684500,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 64746,
-        "gastos": {
-            "vivienda": 455000,
-            "alimentacion": 35000,
-            "transporte": 25000,
-            "servicios": 150000,
-            "salud": 23517,
-            "educacion": 36709,
-            "comunicaciones": 20419,
-            "ocio": 3855
-        }
-    },
-    {
-        "zona": 2,
-        "distrito": "San José Central",
+        "cantón": "San José",
         "provincia": "San José",
         "region_inec": "Central",
         "costo_total_estimado": 1250000,
@@ -76,161 +19,28 @@
         }
     },
     {
-        "zona": 3,
-        "distrito": "Guadalupe",
-        "provincia": "Cartago",
+        "zona": 2,
+        "cantón": "Escazú",
+        "provincia": "San José",
         "region_inec": "Central",
-        "costo_total_estimado": 627999,
+        "costo_total_estimado": 1250000,
         "referencia_ipc_nacional": 108.23,
         "cba_per_capita_regional": 64746,
         "gastos": {
-            "vivienda": 417755,
-            "alimentacion": 102833,
-            "transporte": 59500,
-            "servicios": 22667,
-            "salud": 21556,
-            "educacion": 33621,
-            "comunicaciones": 18704,
-            "ocio": 1363
-        }
-    },
-    {
-        "zona": 3,
-        "distrito": "Cartago Oriental",
-        "provincia": "Cartago",
-        "region_inec": "Central",
-        "costo_total_estimado": 750000,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 64746,
-        "gastos": {
-            "vivienda": 380000,
-            "alimentacion": 150000,
-            "transporte": 50000,
-            "servicios": 90000,
-            "salud": 25725,
-            "educacion": 40200,
-            "comunicaciones": 22350,
-            "ocio": 41725
-        }
-    },
-    {
-        "zona": 4,
-        "distrito": "Liberia",
-        "provincia": "Guanacaste",
-        "region_inec": "Chorotega",
-        "costo_total_estimado": 651333,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 60865,
-        "gastos": {
-            "vivienda": 400000,
-            "alimentacion": 10000,
-            "transporte": 3000,
-            "servicios": 30000,
-            "salud": 22351,
-            "educacion": 34891,
-            "comunicaciones": 19409,
-            "ocio": 131682
-        }
-    },
-    {
-        "zona": 4,
-        "distrito": "Nicoya",
-        "provincia": "Guanacaste",
-        "region_inec": "Chorotega",
-        "costo_total_estimado": 450000,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 60865,
-        "gastos": {
-            "vivienda": 250000,
-            "alimentacion": 80000,
-            "transporte": 50000,
-            "servicios": 40000,
-            "salud": 15435,
-            "educacion": 24120,
-            "comunicaciones": 13410,
-            "ocio": 27035
-        }
-    },
-    {
-        "zona": 4,
-        "distrito": "Mercedes",
-        "provincia": "Heredia",
-        "region_inec": "Central",
-        "costo_total_estimado": 237280,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 64746,
-        "gastos": {
-            "vivienda": 70000,
-            "alimentacion": 7000,
-            "transporte": 280,
-            "servicios": 130000,
-            "salud": 8137,
-            "educacion": 12711,
-            "comunicaciones": 7069,
-            "ocio": 2183
-        }
-    },
-    {
-        "zona": 4,
-        "distrito": "Heredia Central",
-        "provincia": "Heredia",
-        "region_inec": "Central",
-        "costo_total_estimado": 980000,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 64746,
-        "gastos": {
-            "vivienda": 490000,
-            "alimentacion": 140000,
-            "transporte": 70000,
-            "servicios": 180000,
-            "salud": 33500,
-            "educacion": 52408,
-            "comunicaciones": 29104,
-            "ocio": 500
-        }
-    },
-    {
-        "zona": 5,
-        "distrito": "Paquera",
-        "provincia": "Puntarenas",
-        "region_inec": "Pacífico Central",
-        "costo_total_estimado": 571400,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 62854,
-        "gastos": {
-            "vivienda": 300000,
-            "alimentacion": 150000,
-            "transporte": 11400,
-            "servicios": 60000,
-            "salud": 19616,
-            "educacion": 30605,
-            "comunicaciones": 17028,
-            "ocio": 2751
-        }
-    },
-    {
-        "zona": 5,
-        "distrito": "Puntarenas Centro",
-        "provincia": "Puntarenas",
-        "region_inec": "Pacífico Central",
-        "costo_total_estimado": 400000,
-        "referencia_ipc_nacional": 108.23,
-        "cba_per_capita_regional": 62854,
-        "gastos": {
-            "vivienda": 200000,
-            "alimentacion": 100000,
-            "transporte": 20000,
-            "servicios": 50000,
-            "salud": 13720,
-            "educacion": 21440,
-            "comunicaciones": 11920,
-            "ocio": 32920
+            "vivienda": 700000,
+            "alimentacion": 200000,
+            "transporte": 150000,
+            "servicios": 100000,
+            "salud": 42875,
+            "educacion": 67000,
+            "comunicaciones": 37250,
+            "ocio": 102875
         }
     },
     {
         "zona": 6,
-        "distrito": "Siquirres",
-        "provincia": "Limon",
+        "cantón": "Matina",
+        "provincia": "Limón",
         "region_inec": "Atlántica",
         "costo_total_estimado": 1238013,
         "referencia_ipc_nacional": 108.23,
@@ -242,27 +52,872 @@
             "servicios": 40000,
             "salud": 42488,
             "educacion": 66361,
-            "comunicaciones": 36875,
-            "ocio": 44427
+            "comunicaciones": 23840,
+            "ocio": 15000
         }
     },
     {
-        "zona": 6,
-        "distrito": "Limón Central",
-        "provincia": "Limon",
+        "cantón": "San Mateo",
+        "provincia": "Alajuela",
+        "region_inec": "Pacífico Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Orotina",
+        "provincia": "Alajuela",
+        "region_inec": "Pacífico Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "San Carlos",
+        "provincia": "Alajuela",
+        "region_inec": "Huetar Norte",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Guatuso",
+        "provincia": "Alajuela",
+        "region_inec": "Huetar Norte",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Los Chiles",
+        "provincia": "Alajuela",
+        "region_inec": "Huetar Norte",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Upala",
+        "provincia": "Alajuela",
+        "region_inec": "Huetar Norte",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Pérez Zeledón",
+        "provincia": "San José",
+        "region_inec": "Brunca",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 70966,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Desamparados",
+        "provincia": "San José",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Tibás",
+        "provincia": "San José",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Sarapiquí",
+        "provincia": "Heredia",
+        "region_inec": "Huetar Norte",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Heredia",
+        "provincia": "Heredia",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Barva",
+        "provincia": "Heredia",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Santo Domingo",
+        "provincia": "Heredia",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Esparza",
+        "provincia": "Puntarenas",
+        "region_inec": "Pacífico Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Aguirre",
+        "provincia": "Puntarenas",
+        "region_inec": "Pacífico Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Parrita",
+        "provincia": "Puntarenas",
+        "region_inec": "Pacífico Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Garabito",
+        "provincia": "Puntarenas",
+        "region_inec": "Pacífico Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Montes de Oro",
+        "provincia": "Puntarenas",
+        "region_inec": "Pacífico Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Puntarenas",
+        "provincia": "Puntarenas",
+        "region_inec": "Pacífico Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Osa",
+        "provincia": "Puntarenas",
+        "region_inec": "Brunca",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 70966,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Buenos Aires",
+        "provincia": "Puntarenas",
+        "region_inec": "Brunca",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 70966,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Coto Brus",
+        "provincia": "Puntarenas",
+        "region_inec": "Brunca",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 70966,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Corredores",
+        "provincia": "Puntarenas",
+        "region_inec": "Brunca",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 70966,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Golfito",
+        "provincia": "Puntarenas",
+        "region_inec": "Brunca",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 70966,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Pococí",
+        "provincia": "Limón",
         "region_inec": "Atlántica",
         "costo_total_estimado": 800000,
         "referencia_ipc_nacional": 108.23,
         "cba_per_capita_regional": 67772,
         "gastos": {
-            "vivienda": 350000,
-            "alimentacion": 250000,
+            "vivienda": 300000,
+            "alimentacion": 200000,
             "transporte": 50000,
-            "servicios": 60000,
-            "salud": 27440,
-            "educacion": 42880,
-            "comunicaciones": 23840,
-            "ocio": 45840
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Siquirres",
+        "provincia": "Limón",
+        "region_inec": "Atlántica",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Talamanca",
+        "provincia": "Limón",
+        "region_inec": "Atlántica",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Guácimo",
+        "provincia": "Limón",
+        "region_inec": "Atlántica",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Limón",
+        "provincia": "Limón",
+        "region_inec": "Atlántica",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Liberia",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Nicoya",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Santa Cruz",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Carrillo",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Cañas",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Bagaces",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Abangares",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Tilarán",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Nandayure",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "La Cruz",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Hojancha",
+        "provincia": "Guanacaste",
+        "region_inec": "Chorotega",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 67772,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Paraíso",
+        "provincia": "Cartago",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "La Unión",
+        "provincia": "Cartago",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Jiménez",
+        "provincia": "Cartago",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Turrialba",
+        "provincia": "Cartago",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Alvarado",
+        "provincia": "Cartago",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Oreamuno",
+        "provincia": "Cartago",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "El Guarco",
+        "provincia": "Cartago",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
+        }
+    },
+    {
+        "cantón": "Cartago",
+        "provincia": "Cartago",
+        "region_inec": "Central",
+        "costo_total_estimado": 800000,
+        "referencia_ipc_nacional": 108.23,
+        "cba_per_capita_regional": 64746,
+        "gastos": {
+            "vivienda": 300000,
+            "alimentacion": 200000,
+            "transporte": 50000,
+            "servicios": 50000,
+            "salud": 50000,
+            "educacion": 50000,
+            "comunicaciones": 50000,
+            "ocio": 50000
         }
     }
 ]

@@ -1,50 +1,43 @@
 // @ts-nocheck
-import costoVidaData from "./costo-vida-cr.json"; // Asegúrate que el nombre del archivo sea correcto
+// src/routes/+page.js
 
-// Función para calcular la suma de una clave específica (total o gasto individual)
-// @ts-ignore
-function calcularSuma(dataArray, key) {
-    if (!dataArray || dataArray.length === 0) return 0;
+// Importación directa del JSON desde el mismo directorio 'src/routes/'
+import costosData from './costo-vida-cr.json';
 
-    // Si la clave es el total, accede a 'costo_total_estimado'
-    if (key === 'costo_total_estimado') {
-        // @ts-ignore
-        return dataArray.reduce((acc, zona) => acc + (zona.costo_total_estimado || 0), 0);
+/** @type {import('./$types').PageLoad} */
+export async function load() {
+
+    // Define las claves de gastos para el cálculo de promedios
+    const gastosKeys = ['vivienda', 'alimentacion', 'transporte', 'servicios', 'salud', 'educacion', 'comunicaciones', 'ocio'];
+    const promediosGastos = {};
+
+    // 1. Calcular promedios de gastos específicos
+    for (const key of gastosKeys) {
+        // Recorre todos los cantones para sumar el gasto de una categoría específica
+        const sumaGasto = costosData.reduce((sum, z) => sum + (z.gastos[key] || 0), 0);
+        promediosGastos[key] = sumaGasto / costosData.length;
     }
 
-    // Si la clave es un gasto específico (vivienda, alimentacion, etc.), accede a zona.gastos[key]
-    // @ts-ignore
-    return dataArray.reduce((acc, zona) => acc + (zona.gastos?.[key] || 0), 0);
-}
+    // 2. Calcular el promedio nacional del Costo Total Estimado
+    const costosTotales = costosData.map(z => z.costo_total_estimado);
+    const sumaCostos = costosTotales.reduce((sum, current) => sum + current, 0);
+    const promedioNacional = sumaCostos / costosTotales.length;
 
-export async function load() {
-    const totalZonas = costoVidaData.length;
+    // 3. Calcular el promedio de la Canasta Básica Alimentaria (CBA)
+    const sumaCBA = costosData.reduce((sum, z) => sum + z.cba_per_capita_regional, 0);
+    const promedioCBA = sumaCBA / costosData.length;
 
-    // Claves de los gastos individuales para calcular promedios
-    const clavesGastos = ['vivienda', 'alimentacion', 'transporte', 'servicios', 'ocio'];
-
-    // 1. Calcular promedio del costo total
-    const sumaTotal = calcularSuma(costoVidaData, 'costo_total_estimado');
-    const promedioTotal = sumaTotal / totalZonas;
-
-    // 2. Calcular promedios por categorías de gasto
-    const promediosGastos = {};
-    clavesGastos.forEach(key => {
-        const suma = calcularSuma(costoVidaData, key);
-        // @ts-ignore
-        promediosGastos[key] = suma / totalZonas;
-    });
-
-    // Objeto consolidado de promedios para pasar a Svelte
+    // 4. Compilar el objeto de promedios final
     const promedios = {
-        costo_total_estimado: promedioTotal,
-        gastos: promediosGastos,
+        nacional: promedioNacional,
+        cba_per_capita_regional: promedioCBA,
+        ...promediosGastos
     };
 
+    // 5. Retornar los datos. El componente +page.svelte los recibirá en la variable 'data'.
     return {
-        costos: costoVidaData, // La lista completa de zonas
-        costoPromedio: promedioTotal, // El promedio total (opcional, pero se mantiene)
-        promedios: promedios,       // ¡El objeto que tu BarChart y +page.svelte necesitan!
+        costos: costosData,
+        promedios: promedios
     };
 }
 
