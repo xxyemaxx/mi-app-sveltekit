@@ -2,40 +2,37 @@
     // @ts-nocheck
     import { scaleLinear } from "d3-scale";
     import { max } from "d3-array";
+    import { getContext } from "svelte";
 
-    // Propiedades originales
-    export let data = [];
-    export let categoria = "costo_total_estimado";
-    export let promedios = {};
+    // Propiedades
+    export let data = []; // Array de cantones a comparar (1 o 2 elementos)
+    export let category = "costo_total_estimado"; // Ej: 'costo_total_estimado' o 'gastos.vivienda'
+    export let promedios = {}; // Promedios nacionales/regionales
 
-    // PROPIEDAD CLAVE AÑADIDA: Una función que le dice al gráfico cómo obtener el valor.
-    export let valueAccessor;
+    // Acceso al tema (dark/light mode)
+    const { theme } = getContext("theme");
 
+    // Configuración SVG/Gráfico
     const height = 200;
-    const margin = { top: 10, right: 10, bottom: 30, left: 100 };
+    // Más espacio a la izquierda para las etiquetas de los cantones
+    const margin = { top: 10, right: 10, bottom: 30, left: 130 };
     const width = 600;
 
-    // --- Lógica Reactiva ---
+    // Función auxiliar para obtener valores anidados (ej: 'gastos.vivienda')
+    function getNestedValue(obj, path) {
+        if (!obj) return 0;
+        const parts = path.split(".");
+        let current = obj;
+        for (const part of parts) {
+            if (current[part] === undefined) return 0;
+            current = current[part];
+        }
+        return typeof current === "number" ? current : 0;
+    }
 
-    // Obtener valores para el gráfico usando el valueAccessor
-    $: valores = data.map((d) => ({
-        nombre: d.nombre_comparacion || d.canton || d.provincia,
-        valor: valueAccessor(d), // USA LA FUNCIÓN PARA OBTENER EL VALOR
-        isPromedio: d.provincia === d.canton, // Marcador para promedios de provincia
-    }));
-
-    // Determinar el valor máximo para la escala (incluyendo el promedio nacional si existe)
-    $: maxDataValue = max(valores, (d) => d.valor);
-    $: maxNationalValue = promedios[categoria] || promedios.nacional || 0;
-    $: maxValue = Math.max(maxDataValue * 1.15, maxNationalValue * 1.15);
-
-    // Escala X
-    $: xScale = scaleLinear()
-        .domain([0, maxValue])
-        .range([0, width - margin.left - margin.right]);
-
-    // Formato de moneda para etiquetas
-    function formatCurrency(num) {
+    // Función de formato de moneda
+    function formatNumber(num) {
+        if (typeof num !== "number") return "-";
         return new Intl.NumberFormat("es-CR", {
             style: "currency",
             currency: "CRC",
@@ -44,83 +41,110 @@
         }).format(num);
     }
 
-    // Obtener la etiqueta de la categoría seleccionada (para la línea de promedio)
-    $: categoriaKey = categoria;
-    $: promedioNacional = promedios[categoriaKey] || promedios.nacional;
+    // --- Lógica Reactiva ($: ) ---
+
+    // 1. Obtener valores para los cantones y formatear datos
+    $: valoresCantones = data.map((d) => ({
+        nombre: d.cantón,
+        valor: getNestedValue(d, category), // Usa la función auxiliar
+        isPromedio: false,
+        provincia: d.provincia,
+    }));
+
+    // 2. Determinar el valor del promedio nacional/regional (si existe)
+    $: promedioValue = promedios[category] || 0;
+    $: promedioData = {
+        nombre: "Promedio Nacional",
+        valor: promedioValue,
+        isPromedio: true,
+        provincia: "",
+    };
+
+    // 3. Combinar datos de cantones con el promedio (si se muestran)
+    $: combinedData =
+        promedioValue > 0
+            ? [...valoresCantones, promedioData]
+            : valoresCantones;
+
+    // 4. Determinar el valor máximo para la escala (incluyendo el promedio nacional si existe)
+    $: maxDataValue = max(combinedData, (d) => d.valor) || 0;
+    // Asegurar que el eje X se extienda al menos un 15% más allá del valor máximo
+    $: maxValue = maxDataValue * 1.15;
+
+    // 5. Crear la escala D3
+    $: xScale = scaleLinear()
+        .domain([0, maxValue])
+        .range([0, width - margin.left - margin.right]);
+
+    // 6. Configurar la altura de la banda de cada barra (para que el gráfico sea responsivo en Y)
+    $: barBandHeight =
+        (height - margin.top - margin.bottom) / combinedData.length;
+    $: barPadding = 10; // Espacio entre barras
+    $: barHeight = Math.min(30, barBandHeight - barPadding); // Altura máxima de 30px
+    $: barOffset = (barBandHeight - barHeight) / 2; // Offset para centrar la barra
 </script>
 
 <div class="comparison-chart-container">
     <svg viewBox="0 0 {width} {height}" class="chart-svg">
         <g transform="translate({margin.left}, {margin.top})">
-            {#each valores as item, i}
+            <!-- Barras del gráfico y Etiquetas -->
+            {#each combinedData as item, i}
                 <g
                     class="bar-group"
-                    transform="translate(0, {((height -
-                        margin.top -
-                        margin.bottom) /
-                        data.length) *
-                        i})"
+                    transform="translate(0, {i * barBandHeight})"
                 >
+                    <!-- Rectángulo de la barra -->
                     <rect
-                        x={0}
-                        y={0}
-                        width={xScale(item.valor)}
-                        height={(height - margin.top - margin.bottom) /
-                            data.length -
-                            10}
                         class="bar-rect"
                         class:is-promedio={item.isPromedio}
+                        x={0}
+                        y={barOffset}
+                        width={xScale(item.valor)}
+                        height={barHeight}
+                        ry={4}
                     />
 
+                    <!-- Etiqueta del Cantón (Eje Y) -->
                     <text
-                        x={xScale(item.valor) + 5}
-                        y={(height - margin.top - margin.bottom) /
-                            data.length /
-                            2}
-                        alignment-baseline="middle"
-                        class="bar-value-label"
-                    >
-                        {formatCurrency(item.valor)}
-                    </text>
-
-                    <text
+                        class="bar-label y-label"
                         x={-10}
-                        y={(height - margin.top - margin.bottom) /
-                            data.length /
-                            2}
-                        alignment-baseline="middle"
+                        y={barOffset + barHeight / 2}
+                        dominant-baseline="middle"
                         text-anchor="end"
-                        class="bar-label"
                     >
                         {item.nombre}
+                    </text>
+
+                    <!-- Etiqueta del Valor (dentro de la barra) -->
+                    <text
+                        class="bar-label value-label"
+                        x={xScale(item.valor) + 10}
+                        y={barOffset + barHeight / 2}
+                        dominant-baseline="middle"
+                        text-anchor="start"
+                    >
+                        {formatNumber(item.valor)}
                     </text>
                 </g>
             {/each}
 
-            {#if promedioNacional && promedioNacional > 0}
-                <line
-                    x1={xScale(promedioNacional)}
-                    y1={0}
-                    x2={xScale(promedioNacional)}
-                    y2={height - margin.top - margin.bottom}
-                    class="average-line"
-                />
-                <text
-                    x={xScale(promedioNacional)}
-                    y={height - margin.top - margin.bottom + 5}
-                    text-anchor="middle"
-                    class="average-label"
-                >
-                    Promedio Nacional
-                </text>
-            {/if}
+            <!-- Etiqueta del Eje X: Cero -->
+            <text
+                class="axis-label"
+                x={0}
+                y={height - margin.top - margin.bottom + 20}
+                text-anchor="start"
+            >
+                {formatNumber(0)}
+            </text>
 
+            <!-- Linea del Eje X -->
             <line
                 x1={0}
                 y1={height - margin.top - margin.bottom}
                 x2={width - margin.left - margin.right}
                 y2={height - margin.top - margin.bottom}
-                stroke="#ccc"
+                stroke="var(--border-color)"
             />
         </g>
     </svg>
@@ -128,49 +152,48 @@
 
 <style>
     .comparison-chart-container {
-        font-family: Arial, sans-serif;
+        font-family: "Inter", sans-serif;
         margin-top: 20px;
         overflow: hidden;
+        border-radius: 8px;
+        background-color: var(--background-color);
     }
     .chart-svg {
         width: 100%;
         height: 100%;
         display: block;
+        min-height: 200px;
     }
     .bar-rect {
+        /* Color principal para las barras de cantones */
         fill: var(--color-secondary, #007bff);
-        height: 30px; /* Tamaño por defecto de las barras */
-        border-radius: 4px;
         transition: all 0.5s ease-out;
     }
     .bar-rect.is-promedio {
+        /* Color distintivo para el promedio nacional */
         fill: var(--color-accent, #ffc107);
     }
     .bar-group:hover .bar-rect {
-        opacity: 0.8;
+        opacity: 0.9;
     }
     .bar-label {
-        font-size: 0.8em;
-        font-weight: 600;
-        fill: var(--text-color, #333);
-        max-width: 100px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .bar-value-label {
-        font-size: 0.8em;
-        fill: var(--text-color, #333);
+        font-size: 0.85em;
         font-weight: 500;
+        fill: var(--text-color, #333);
     }
-    .average-line {
-        stroke: #dc3545;
-        stroke-width: 2px;
-        stroke-dasharray: 4 4;
+    .y-label {
+        /* Etiquetas del eje Y (nombres de cantones) */
+        fill: var(--text-color);
+        font-weight: 600;
     }
-    .average-label {
-        font-size: 0.7em;
-        fill: #dc3545;
+    .value-label {
+        /* Etiquetas de valor dentro/al lado de las barras */
+        fill: var(--text-color);
         font-weight: 700;
+    }
+    .axis-label {
+        font-size: 0.75em;
+        fill: var(--text-color);
+        opacity: 0.7;
     }
 </style>
