@@ -3,7 +3,7 @@
     import { onMount, setContext } from "svelte";
     import ComparisonChart from "$lib/components/ComparisonChart.svelte";
     import DistributionChart from "$lib/components/DistributionChart.svelte";
-    import CantónTooltip from "$lib/components/CantónTooltip.svelte"; // 💡 NUEVO
+    import CantonTooltip from "$lib/components/CantonTooltip.svelte"; // 💡 NUEVO
 
     export let data; // Datos cargados por SvelteKit (que contienen 'costos' y 'promedios')
 
