@@ -28,7 +28,6 @@
 
     // Inicialización de datos y aplicación del filtro
     const todasLasZonasRaw = data?.costos || [];
-
     // 💡 INTEGRACIÓN DE DATOS: Añadir mock data de Población e IDH
     // Además, filtrar por cantones clave y añadir el color IDH
     const todasLasZonas = todasLasZonasRaw
@@ -66,7 +65,6 @@
                 if (value >= 0.7) return "#ffc107"; // Desarrollo Alto (Amarillo)
                 return "#ff6347"; // Desarrollo Medio/Bajo (Rojo/Naranja)
             };
-
             return {
                 ...zona,
                 poblacion: Math.floor(poblacion),
@@ -78,6 +76,7 @@
     const promediosNacionales = data?.promedios || {};
 
     // Variables de estado para la comparación
+    // Inicialización con valores vacíos para que no haya selección por defecto.
     let provinciaSeleccionada1 = "";
     let cantonSeleccionado1 = "";
     let provinciaSeleccionada2 = "";
@@ -86,10 +85,10 @@
     // Variables de estado para la tabla y filtros
     let gastoComparacionSeleccionada = "";
     let presentacionSeleccionada = "todas";
+    let idhSeleccionado = "todas"; // 💡 NUEVA VARIABLE IDH
     let zonasFiltradasActuales = todasLasZonas;
     let zonasParaComparar = [];
     let mostrarResults = true;
-
     // Variables de estado para ordenamiento
     let criterioOrden = "costo";
     let direccionOrden = "desc";
@@ -125,7 +124,6 @@
     $: todasLasProvincias = [
         ...new Set(todasLasZonas.map((z) => z.provincia)),
     ].sort();
-
     // Obtener cantones disponibles para los Selects, filtrando por provincia
     $: cantonesDisponibles1 = todasLasZonas
         .filter((z) => {
@@ -134,7 +132,6 @@
         })
         .map((z) => z.cantón) // Usamos 'cantón' con tilde
         .sort();
-
     $: cantonesDisponibles2 = todasLasZonas
         .filter((z) => {
             if (provinciaSeleccionada2 === "") return true;
@@ -143,26 +140,53 @@
         .map((z) => z.cantón) // Usamos 'cantón' con tilde
         .sort();
 
-    // Lógica para limpiar Select 2 si la provincia cambia
+    // Lógica para limpiar el cantón si la provincia cambia y el cantón seleccionado ya no es válido.
     $: {
+        // Lógica para Select 1
+        if (
+            provinciaSeleccionada1 &&
+            cantonSeleccionado1 &&
+            !cantonesDisponibles1.includes(cantonSeleccionado1)
+        ) {
+            // Si la provincia es seleccionada, pero el cantón no es válido, lo borramos
+            cantonSeleccionado1 = cantonesDisponibles1[0] || "";
+        }
+    }
+    $: {
+        // Lógica para Select 2
         if (
             provinciaSeleccionada2 &&
             cantonSeleccionado2 &&
             !cantonesDisponibles2.includes(cantonSeleccionado2)
         ) {
-            cantonSeleccionado2 = "";
+            // Si la provincia es seleccionada, pero el cantón no es válido, lo borramos
+            cantonSeleccionado2 = cantonesDisponibles2[0] || "";
         }
     }
 
     // Lógica de filtrado y ordenamiento de la tabla
     $: {
         let zonasFiltradas = todasLasZonas;
-
         // 1. Filtrado por presentación (Región INEC)
         if (presentacionSeleccionada !== "todas") {
             zonasFiltradas = zonasFiltradas.filter(
                 (zona) => zona.region_inec === presentacionSeleccionada,
             );
+        }
+
+        // 💡 NUEVO FILTRADO POR IDH (Rango)
+        if (idhSeleccionado !== "todas") {
+            zonasFiltradas = zonasFiltradas.filter((zona) => {
+                const idhValue = zona.idh;
+                if (idhSeleccionado === "muy-alto") {
+                    return idhValue >= 0.8;
+                } else if (idhSeleccionado === "alto") {
+                    return idhValue >= 0.7 && idhValue < 0.8;
+                } else if (idhSeleccionado === "medio-bajo") {
+                    return idhValue < 0.7;
+                }
+                return true;
+            });
         }
 
         // 2. Filtrado por búsqueda de cantones
@@ -240,7 +264,6 @@
             z.provincia === provinciaSeleccionada2 &&
             z.cantón === cantonSeleccionado2,
     );
-
     // El array de comparación principal se sobrescribe por la selección de Selects
     $: {
         zonasParaComparar = [];
@@ -271,7 +294,6 @@
             valorComparacion: valor,
         };
     });
-
     // Funciones de utilidad para la UI
     function zonaSeleccionada(canton) {
         return zonasParaComparar.some((z) => z.cantón === canton);
@@ -313,6 +335,27 @@
             theme = "dark";
         }
         document.documentElement.setAttribute("data-theme", theme);
+
+        // 💡 PERSISTENCIA DE FILTROS: Cargar estado
+        const savedState = localStorage.getItem("dashboardState");
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+                // Usamos ?? (nullish coalescing) para no sobreescribir con null/undefined
+                provinciaSeleccionada1 = state.p1 ?? provinciaSeleccionada1;
+                cantonSeleccionado1 = state.c1 ?? cantonSeleccionado1;
+                provinciaSeleccionada2 = state.p2 ?? provinciaSeleccionada2;
+                cantonSeleccionado2 = state.c2 ?? cantonSeleccionado2;
+                gastoComparacionSeleccionada =
+                    state.search ?? gastoComparacionSeleccionada;
+                presentacionSeleccionada =
+                    state.region ?? presentacionSeleccionada;
+                idhSeleccionado = state.idh ?? idhSeleccionado;
+                categoriaComparacion = state.category ?? categoriaComparacion;
+            } catch (e) {
+                console.error("Error al cargar el estado guardado:", e);
+            }
+        }
     });
 
     function toggleTheme() {
@@ -321,15 +364,25 @@
         document.documentElement.setAttribute("data-theme", theme);
     }
 
-    // Resetear filtros
+    // 💡 FUNCIÓN DE RESETEO MODIFICADA: Ahora borra la selección y resetea los nuevos filtros.
     function resetFilters() {
+        // 1. Reinicia los selectores de comparación a valores VACÍOS
         provinciaSeleccionada1 = "";
         cantonSeleccionado1 = "";
         provinciaSeleccionada2 = "";
         cantonSeleccionado2 = "";
-        gastoComparacionSeleccionada = "";
-        presentacionSeleccionada = "todas";
-        zonasParaComparar = [];
+
+        // 2. Reinicia los filtros de la tabla
+        gastoComparacionSeleccionada = ""; // Campo de búsqueda de texto
+        presentacionSeleccionada = "todas"; // Filtro de región
+        idhSeleccionado = "todas"; // <-- RESET NUEVO FILTRO IDH
+
+        // 3. Reinicia el ordenamiento y la categoría del gráfico
+        criterioOrden = "costo";
+        direccionOrden = "desc";
+        categoriaComparacion = "costo_total_estimado"; // <-- RESET CATEGORÍA GRÁFICO
+
+        // Esto vacía los gráficos y restablece la tabla de cantones a la vista completa y ordenada por costo.
     }
 
     const regionesINECAbrevs = [
@@ -341,6 +394,23 @@
         "Atlántica",
     ];
     $: totalZonasParaComparar = zonasParaComparar.length;
+
+    // 💡 PERSISTENCIA DE FILTROS: Guardar estado en localStorage cada vez que hay un cambio
+    $: {
+        if (typeof localStorage !== "undefined") {
+            const state = JSON.stringify({
+                p1: provinciaSeleccionada1,
+                c1: cantonSeleccionado1,
+                p2: provinciaSeleccionada2,
+                c2: cantonSeleccionado2,
+                search: gastoComparacionSeleccionada,
+                region: presentacionSeleccionada,
+                idh: idhSeleccionado,
+                category: categoriaComparacion,
+            });
+            localStorage.setItem("dashboardState", state);
+        }
+    }
 </script>
 
 <svelte:head>
@@ -470,7 +540,11 @@
         {#if totalZonasParaComparar === 1}
             <div class="chart-container distribution-chart">
                 <h3>Distribución de Gastos en {zonasParaComparar[0].cantón}</h3>
-                <DistributionChart data={zonasParaComparar[0]} {theme} />
+                <DistributionChart
+                    data={zonasParaComparar[0]}
+                    {theme}
+                    promedios={promediosNacionales}
+                />
             </div>
         {/if}
     </section>
@@ -493,6 +567,12 @@
                 {#each regionesINECAbrevs as region}
                     <option value={region}>{region}</option>
                 {/each}
+            </select>
+            <select bind:value={idhSeleccionado} class="idh-select">
+                <option value="todas">IDH (Todas las Categorías)</option>
+                <option value="muy-alto">Muy Alto (0.8+)</option>
+                <option value="alto">Alto (0.7 - 0.799)</option>
+                <option value="medio-bajo">Medio/Bajo (Menos de 0.7)</option>
             </select>
         </div>
 
@@ -538,13 +618,15 @@
                     on:click={() => setOrden("transporte")}
                     class="col-transporte header-button"
                 >
-                    Transp. {getArrow("transporte")}
+                    Transp.
+                    {getArrow("transporte")}
                 </button>
                 <button
                     on:click={() => setOrden("servicios")}
                     class="col-servicios header-button"
                 >
-                    Servic. {getArrow("servicios")}
+                    Servic.
+                    {getArrow("servicios")}
                 </button>
                 <button
                     on:click={() => setOrden("salud")}
@@ -836,7 +918,9 @@
     }
 
     .search-input,
-    .region-select {
+    .region-select,
+    .idh-select {
+        /* ESTILO APLICADO AL NUEVO SELECTOR IDH */
         flex: 1;
         padding: 12px 15px;
         border-radius: 8px;
@@ -848,7 +932,9 @@
     }
 
     .search-input:focus,
-    .region-select:focus {
+    .region-select:focus,
+    .idh-select:focus {
+        /* ESTILO APLICADO AL NUEVO SELECTOR IDH */
         border-color: var(--color-primary);
         outline: none;
     }
@@ -862,8 +948,8 @@
 
     .table-header,
     .table-row-list {
-        display: grid;
         /* 💡 COLUMNAS ACTUALIZADAS: 1.5fr (Cantón) + 1fr (Provincia) + 0.8fr (Total) + 0.5fr (IDH) + 5 * 0.7fr (Gastos) */
+        display: grid;
         grid-template-columns: 1.5fr 1fr 0.8fr 0.5fr repeat(5, 0.7fr);
         padding: 8px 20px;
         border-bottom: 1px solid var(--border-color);
@@ -912,7 +998,7 @@
     .table-row-list:hover {
         background-color: var(--background-color);
         /* 💡 INTERACTIVIDAD HOVER: Añadir un ligero realce */
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 0 5px var(--shadow-color);
     }
 
     .table-row-list.selected {
@@ -1021,6 +1107,8 @@
         cursor: not-allowed;
         opacity: 0.7;
     }
+
+    /* Nota: Se añadió la validación `disabled={!(cantonSeleccionado1 || cantonSeleccionado2)}` al botón "Ver Gráficos" para asegurar que al menos un cantón esté seleccionado. */
 
     /* Media Queries Responsive */
     @media (max-width: 1000px) {
