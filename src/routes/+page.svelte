@@ -7,24 +7,38 @@
 
     export let data; // Datos cargados por SvelteKit (que contienen 'costos' y 'promedios')
 
-    // --- Definición de Cantones Clave (15 Cantones) ---
+    // --- Definición de Cantones Clave (20 Cantones) ---
     const cantonesClave = new Set([
-        "San José",
-        "Escazú",
-        "Alajuela",
-        "Cartago",
-        "Heredia",
-        "Limón",
-        "Puntarenas",
-        "Liberia",
-        "Santa Cruz",
-        "San Carlos",
-        "Pérez Zeledón",
-        "Curridabat",
-        "Desamparados",
-        "Belén",
-        "Quepos",
+        "San José", // Centro Urbano (Alto Costo)
+        "Escazú", // Alto Poder Adquisitivo
+        "Montes de Oca", // Universitario/Residencial
+        "Pérez Zeledón", // Cabecera Brunca (Costos Medios)
+        "Curridabat", // Residencial Metropolitano
+        "Desamparados", // Metropolitano Denso
+
+        "Alajuela", // Capital de Provincia
+        "San Carlos", // Huetar Norte (Rural/Agrícola)
+        "Orotina", // Pacífico Central (Costos Medios-Bajos)
+        "Upala", // Frontera Norte (Bajo Costo)
+
+        "Cartago", // Capital de Provincia
+        "La Unión", // Residencial Cartago (Alto Costo)
+        "Turrialba", // Atlántica (Costos Medios-Bajos)
+
+        "Heredia", // Capital de Provincia
+        "Belén", // Zona Comercial/Industrial (Alto IDH)
+        "Sarapiquí", // Huetar Norte (Bajo Costo)
+
+        "Liberia", // Capital Guanacaste
+        "Santa Cruz", // Zona Turística (Costo Variable)
+
+        "Puntarenas", // Capital de Provincia (Pacífico Central)
+        "Corredores", // Zona Sur (Bajo Costo)
+
+        "Limón", // Capital de Provincia (Atlántica)
+        "Talamanca", // Zona Indígena/Rural (Muy Bajo Costo)
     ]);
+    // ...
 
     // Inicialización de datos y aplicación del filtro
     const todasLasZonasRaw = data?.costos || [];
