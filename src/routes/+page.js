@@ -1,19 +1,39 @@
 // @ts-nocheck
 // src/routes/+page.js
 
-// Importación directa del JSON desde el mismo directorio 'src/routes/'
-import costosData from './costo-vida-cr.json';
+// 1. IMPORTACIÓN CORREGIDA DEFINITIVA: 
+// Usamos el sufijo '?raw' de Vite. Esto importa el contenido del archivo 
+// 'costo-vida-cr.json' como una simple cadena de texto (string).
+import rawCostosData from './costo-vida-cr.json?raw';
+
 
 /** @type {import('./$types').PageLoad} */
 export async function load() {
+
+    let costosData = [];
+
+    // 2. Analizar el texto a JSON
+    try {
+        costosData = JSON.parse(rawCostosData);
+    } catch (e) {
+        console.error("Error al analizar costo-vida-cr.json (JSON.parse falló):", e);
+        // Devolvemos un array vacío para evitar que la aplicación se rompa
+        return { costos: [], promedios: {} };
+    }
+
+    // A partir de aquí, la lógica de cálculo es la misma:
 
     // Define las claves de gastos para el cálculo de promedios
     const gastosKeys = ['vivienda', 'alimentacion', 'transporte', 'servicios', 'salud', 'educacion', 'comunicaciones', 'ocio'];
     const promediosGastos = {};
 
+    // Si no hay datos, evitamos divisiones por cero
+    if (costosData.length === 0) {
+        return { costos: costosData, promedios: {} };
+    }
+
     // 1. Calcular promedios de gastos específicos (Vivienda, Alimentación, etc.)
     for (const key of gastosKeys) {
-        // Recorre todos los cantones para sumar el gasto de una categoría específica
         const sumaGasto = costosData.reduce((sum, z) => sum + (z.gastos?.[key] || 0), 0);
         promediosGastos[key] = sumaGasto / costosData.length;
     }
@@ -28,14 +48,13 @@ export async function load() {
     const promedioCBA = sumaCBA / costosData.length;
 
     // 4. Compilar el objeto de promedios final.
-    // CORRECCIÓN: Usamos 'costo_total_estimado' como clave para que coincida con el selector del gráfico.
     const promedios = {
-        costo_total_estimado: promedioNacional, // <-- CLAVE CORREGIDA
+        costo_total_estimado: promedioNacional,
         cba_per_capita_regional: promedioCBA,
         ...promediosGastos
     };
 
-    // 5. Retornar los datos. El componente +page.svelte los recibirá en la variable 'data'.
+    // 5. Retornar los datos.
     return {
         costos: costosData,
         promedios: promedios
