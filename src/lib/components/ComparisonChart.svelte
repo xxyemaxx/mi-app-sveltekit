@@ -19,6 +19,7 @@
         comunicaciones: "Comunicaciones",
         ocio: "Ocio",
         cba_per_capita_regional: "CBA Per Cápita Regional",
+        idh: "Índice de Desarrollo Humano (IDH)", // Nueva etiqueta
     };
 
     // 2. Colores fijos para la consistencia visual
@@ -28,236 +29,220 @@
         average: "#ffc107", // Amarillo (Promedio Nacional)
     };
 
-    // 3. Cálculo Reactivo del Promedio Nacional (para la línea base)
-    $: nationalAverage = (() => {
-        // En +page.svelte, solo calculamos promedioNacionalCosto y promedioNacionalIDH.
-        // Si la categoría específica no está en el objeto `promedios`,
-        // usamos el promedio de Costo Total como la línea de referencia por defecto.
-        return promedios?.[category] || promedios?.costo_total_estimado || 0;
-    })();
+    // 3. Cálculo Reactivo del Promedio Nacional (para la línea de referencia)
+    $: averageValue = promedios[category] || 0;
 
-    // 4. Determinar el valor máximo para establecer la escala (eje Y)
-    $: maxValue = (() => {
-        const values = data.map((d) => d.valorComparacion);
-        values.push(nationalAverage); // Incluir el promedio nacional
+    // 4. Cálculo Reactivo del valor máximo (para escalar las barras)
+    $: {
+        let max = averageValue;
+        if (data.length > 0) {
+            max = Math.max(max, ...data.map((d) => d.valorComparacion || 0));
+        }
+        // Añadimos un 5% extra al máximo para que la barra no toque la parte superior del gráfico
+        // Para IDH, que es un índice, usamos un máximo fijo de 1
+        if (category === "idh") {
+            maxValue = 1;
+        } else {
+            maxValue = max * 1.05;
+        }
+    }
+    let maxValue = 0;
 
-        // El valor máximo debe ser el más alto de todos, más un 10% de margen.
-        const maxVal = Math.max(...values, 100);
-        return maxVal * 1.1; // 10% de margen para que la barra más alta no toque el borde
-    })();
-
-    // 5. Función de formato para el eje Y y las etiquetas
-    const formatValue = (value) => {
-        // Para IDH, se usa formato decimal.
-        if (category === "idh" || category.includes("idh")) {
+    // 5. Función de utilidad para formatear el valor
+    function formatValue(value) {
+        if (category === "idh") {
             return value.toFixed(3);
         }
-        // Para costos, se usa formato de moneda.
-        const num = parseFloat(value) || 0;
-        return new Intl.NumberFormat("es-CR", {
-            style: "currency",
-            currency: "CRC",
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(num);
-    };
+        if (category === "cba_per_capita_regional") {
+            return `₡${new Intl.NumberFormat("es-CR").format(value)}`;
+        }
+        // Formato de moneda para el resto (costos)
+        return `₡${new Intl.NumberFormat("es-CR", { maximumFractionDigits: 0 }).format(value)}`;
+    }
 
-    // 6. Obtener el valor formateado del eje Y
-    const getAxisValue = (percentage) => {
-        return formatValue(maxValue * percentage);
-    };
+    // 6. Función para calcular la altura de la barra en porcentaje
+    function getBarHeight(value) {
+        if (maxValue === 0) return 0;
+        return (value / maxValue) * 100;
+    }
 </script>
 
-<div class="comparison-chart-wrapper">
-    <h3>
-        Comparación de **{CATEGORY_LABELS[category] || category}**
+<div class="comparison-chart-container">
+    <h3 class="chart-title">
+        {CATEGORY_LABELS[category] || "Valor Desconocido"}
     </h3>
 
     <div class="chart-area">
-        <div class="y-axis">
-            <div class="y-axis-label max-value" style="top: 0;">
-                {getAxisValue(1)}
-            </div>
-            <div class="y-axis-label half-value" style="top: 50%;">
-                {getAxisValue(0.5)}
-            </div>
-            <div class="y-axis-label zero-value" style="bottom: 0;">
-                {getAxisValue(0)}
-            </div>
-        </div>
-
-        <div class="bars-container">
+        {#if averageValue > 0 && category !== "idh"}
             <div
-                class="bar-group average-group"
-                style="--bar-height: {(nationalAverage / maxValue) * 100}%; 
-                       --bar-color: {CHART_COLORS.average};"
+                class="average-line"
+                style="bottom: {getBarHeight(averageValue)}%;"
             >
-                <div class="bar bar-average"></div>
-                <span class="value-label">
-                    {formatValue(nationalAverage)}
-                </span>
-                <span class="canton-label"> PROMEDIO NACIONAL </span>
-            </div>
-
-            {#each data as canton, index}
-                <div
-                    class="bar-group canton-group"
-                    style="--bar-height: {(canton.valorComparacion / maxValue) *
-                        100}%; 
-                           --bar-color: {index === 0
-                        ? CHART_COLORS.canton1
-                        : CHART_COLORS.canton2};"
+                <span class="average-label"
+                    >Promedio Nacional: {formatValue(averageValue)}</span
                 >
-                    <div class="bar bar-canton"></div>
+            </div>
+        {/if}
 
-                    <span class="value-label value-canton">
-                        {formatValue(canton.valorComparacion)}
-                    </span>
-                    <span class="canton-label">
-                        {canton.cantón}
-                    </span>
-                </div>
-            {/each}
-        </div>
+        {#if data.length > 0}
+            <div class="bar-group">
+                {#each data as canton, index}
+                    <div class="bar-wrapper">
+                        <div
+                            class="bar"
+                            style="
+                                height: {getBarHeight(
+                                canton.valorComparacion,
+                            )}%;
+                                background-color: {CHART_COLORS[
+                                `canton${index + 1}`
+                            ]};
+                            "
+                        >
+                            <span class="bar-value">
+                                {formatValue(canton.valorComparacion)}
+                            </span>
+                        </div>
+                        <div class="canton-label">{canton.cantón}</div>
+                    </div>
+                {/each}
+            </div>
+        {:else}
+            <div class="no-data">
+                Seleccione uno o dos cantones para iniciar la comparación.
+            </div>
+        {/if}
     </div>
 
     <div class="legend">
-        <div class="legend-item">
-            <span
-                class="legend-color"
-                style="background-color: {CHART_COLORS.canton1};"
-            ></span>
-            Cantón 1 (Principal)
-        </div>
-        {#if data[1]}
+        {#if data.length > 0}
+            <div class="legend-item">
+                <span
+                    class="legend-color"
+                    style="background-color: {CHART_COLORS.canton1};"
+                ></span>
+                {data[0]?.cantón || "Cantón 1"}
+            </div>
+        {/if}
+        {#if data.length > 1}
             <div class="legend-item">
                 <span
                     class="legend-color"
                     style="background-color: {CHART_COLORS.canton2};"
                 ></span>
-                Cantón 2 (Comparación)
+                {data[1]?.cantón || "Cantón 2"}
             </div>
         {/if}
-        <div class="legend-item">
-            <span
-                class="legend-color"
-                style="background-color: {CHART_COLORS.average};"
-            ></span>
-            Promedio Nacional ({data.length} Cantones Comparados)
-        </div>
+        {#if averageValue > 0 && category !== "idh"}
+            <div class="legend-item">
+                <span
+                    class="legend-color"
+                    style="background-color: {CHART_COLORS.average}; opacity: 0.5; border: 1px dashed {CHART_COLORS.average}"
+                ></span>
+                Promedio Nacional
+            </div>
+        {/if}
     </div>
 </div>
 
 <style>
-    /* Estilos del contenedor */
-    .comparison-chart-wrapper {
+    .comparison-chart-container {
         padding: 20px;
-        background: var(--background-color);
+        background: var(--card-background);
         border-radius: 8px;
+        border: 1px solid var(--border-color);
     }
 
-    .comparison-chart-wrapper h3 {
+    .chart-title {
         text-align: center;
         color: var(--color-primary);
-        margin-bottom: 30px;
+        margin-bottom: 20px;
         font-size: 1.5em;
     }
 
-    /* Área principal del gráfico */
     .chart-area {
         position: relative;
-        height: 350px; /* Altura fija */
-        padding-left: 50px; /* Espacio para el eje Y */
-        border-bottom: 2px solid var(--chart-line-color);
-        margin: 0 10px 40px 10px;
+        height: 300px;
+        border-bottom: 2px solid var(--text-color);
+        margin-bottom: 35px; /* Espacio para las etiquetas */
+        padding: 0 10px;
     }
 
-    /* Líneas de referencia del Eje Y */
-    .y-axis {
+    .no-data {
         position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-    }
-    .y-axis-label {
-        position: absolute;
-        left: -50px;
-        font-size: 0.85em;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         color: var(--text-color);
-        font-weight: 600;
-        pointer-events: none;
-        white-space: nowrap;
-        transform: translateY(-50%); /* Ajuste para centrar en la línea */
-    }
-    .half-value {
-        border-top: 1px dashed var(--chart-line-color);
-        width: 100%;
-    }
-    .max-value {
-        transform: translateY(0);
-    }
-    .zero-value {
-        transform: translateY(0);
+        font-style: italic;
     }
 
-    /* Contenedor de Barras */
-    .bars-container {
+    /* Línea de Promedio Nacional */
+    .average-line {
         position: absolute;
-        top: 0;
-        left: 50px; /* Alineado al borde del eje Y */
-        right: 0;
-        bottom: 0;
-        display: flex;
-        justify-content: space-around;
-        align-items: flex-end; /* Las barras crecen desde abajo */
-        padding-bottom: 20px; /* Espacio para las etiquetas de cantón */
-        gap: 20px;
+        width: 100%;
+        height: 2px;
+        background-color: var(--color-accent);
+        border-top: 1px dashed var(--color-accent);
+        z-index: 1;
+        transition: bottom 0.5s ease;
     }
 
-    /* Estilo del grupo de barras */
+    .average-label {
+        position: absolute;
+        top: -20px;
+        right: 0;
+        background-color: var(--color-accent);
+        color: var(--card-background);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        font-weight: 600;
+        white-space: nowrap;
+        opacity: 0.9;
+    }
+
+    /* Contenedor de las Barras */
     .bar-group {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100px; /* Ancho fijo para cada barra */
+        justify-content: space-around;
+        align-items: flex-end; /* Alinea las barras a la base */
         height: 100%;
+    }
+
+    .bar-wrapper {
         position: relative;
+        width: 100px; /* Ancho fijo para las barras */
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
     }
 
-    /* La barra real */
     .bar {
-        position: absolute;
-        bottom: 0;
-        width: 100%;
-        height: var(--bar-height); /* Altura dinámica en JS */
-        background-color: var(--bar-color); /* Color dinámico en JS */
-        border-radius: 4px 4px 0 0;
-        transition:
-            height 0.5s ease-out,
-            background-color 0.3s;
-        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+        width: 80%;
+        background-color: var(--color-primary);
+        border-radius: 6px 6px 0 0;
+        position: relative;
+        transition: height 0.5s ease-out;
+        display: flex;
+        justify-content: center;
     }
 
-    /* El promedio nacional es una línea de referencia más delgada y tenue */
-    .average-group {
-        width: 40px;
-    }
-    .bar-average {
-        box-shadow: none;
-        opacity: 0.7;
-    }
-
-    /* Etiquetas de valor encima de la barra */
-    .value-label {
+    /* Valor sobre la barra */
+    .bar-value {
         position: absolute;
-        /* La etiqueta se coloca 25px POR ENCIMA del final de la barra */
-        top: calc(100% - var(--bar-height) - 25px);
-        color: var(--bar-color);
-        font-weight: 700;
-        font-size: 0.9em;
+        top: -25px;
+        font-size: 0.8em;
+        font-weight: bold;
+        color: var(--text-color);
+        background-color: var(--card-background);
+        padding: 2px 5px;
+        border-radius: 4px;
         white-space: nowrap;
-        text-align: center;
+        box-shadow: 0 1px 3px var(--shadow-color);
+        z-index: 2; /* Sobre la línea promedio */
+        opacity: 0.9;
         transition: top 0.5s ease-out;
     }
 
@@ -304,24 +289,22 @@
     @media (max-width: 768px) {
         .chart-area {
             height: 250px;
-            margin: 0;
-            padding-left: 40px;
+            margin-bottom: 40px;
         }
-        .bars-container {
-            left: 40px;
+        .bar-wrapper {
+            width: 80px;
         }
-        .bar-group {
-            width: 70px;
+        .average-label {
+            top: -30px;
+            font-size: 0.75em;
         }
-        .average-group {
-            width: 30px;
-        }
-        .y-axis-label {
-            left: -40px;
+        .bar-value {
+            font-size: 0.75em;
+            top: -20px;
         }
         .legend {
             flex-direction: column;
-            align-items: center;
+            align-items: flex-start;
             gap: 10px;
         }
     }

@@ -1,5 +1,8 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
+	// 💡 ¡Esta línea importa tu archivo CSS global con las directivas de Tailwind!
+	import "../app.css";
+
+	import favicon from "$lib/assets/favicon.svg";
 
 	let { children } = $props();
 </script>

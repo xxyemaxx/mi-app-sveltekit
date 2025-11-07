@@ -17,8 +17,11 @@
 		"@sveltejs/adapter-cloudflare": "^7.2.4",
 		"@sveltejs/kit": "^2.43.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.0",
+		"autoprefixer": "^10.4.21",
+		"postcss": "^8.5.6",
 		"svelte": "^5.39.5",
 		"svelte-check": "^4.3.2",
+		"tailwindcss": "^4.1.17",
 		"typescript": "^5.9.2",
 		"vite": "^7.1.7",
 		"wrangler": "^4.42.2"
@@ -29,6 +32,7 @@
 		"d3": "^7.9.0",
 		"d3-array": "^3.2.4",
 		"d3-scale": "^4.0.2",
+		"fuse.js": "^7.1.0",
 		"leaflet": "^1.9.4"
 	}
 }

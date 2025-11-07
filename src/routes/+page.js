@@ -11,10 +11,10 @@ export async function load() {
     const gastosKeys = ['vivienda', 'alimentacion', 'transporte', 'servicios', 'salud', 'educacion', 'comunicaciones', 'ocio'];
     const promediosGastos = {};
 
-    // 1. Calcular promedios de gastos específicos
+    // 1. Calcular promedios de gastos específicos (Vivienda, Alimentación, etc.)
     for (const key of gastosKeys) {
         // Recorre todos los cantones para sumar el gasto de una categoría específica
-        const sumaGasto = costosData.reduce((sum, z) => sum + (z.gastos[key] || 0), 0);
+        const sumaGasto = costosData.reduce((sum, z) => sum + (z.gastos?.[key] || 0), 0);
         promediosGastos[key] = sumaGasto / costosData.length;
     }
 
@@ -27,9 +27,10 @@ export async function load() {
     const sumaCBA = costosData.reduce((sum, z) => sum + z.cba_per_capita_regional, 0);
     const promedioCBA = sumaCBA / costosData.length;
 
-    // 4. Compilar el objeto de promedios final
+    // 4. Compilar el objeto de promedios final.
+    // CORRECCIÓN: Usamos 'costo_total_estimado' como clave para que coincida con el selector del gráfico.
     const promedios = {
-        nacional: promedioNacional,
+        costo_total_estimado: promedioNacional, // <-- CLAVE CORREGIDA
         cba_per_capita_regional: promedioCBA,
         ...promediosGastos
     };

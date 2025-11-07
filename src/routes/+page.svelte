@@ -1,9 +1,11 @@
 <script>
     // @ts-nocheck
     import { onMount, setContext } from "svelte";
+    // Asegúrese de que CantonTooltip, ComparisonChart y DistributionChart existan en $lib/components/
     import ComparisonChart from "$lib/components/ComparisonChart.svelte";
     import DistributionChart from "$lib/components/DistributionChart.svelte";
-    import CantonTooltip from "$lib/components/CantonTooltip.svelte";
+    import CantonTooltip from "$lib/components/CantonTooltip.svelte"; // NOTA: El componente que muestra el detalle completo es CantonTooltip en el código de ejemplo.
+    import Fuse from "fuse.js"; // Se mantiene por si se quiere añadir búsqueda difusa, aunque el código usa búsqueda simple.
 
     export let data; // Datos cargados por SvelteKit (que contienen 'costos' y 'promedios')
 
@@ -38,11 +40,12 @@
         "Limón", // Capital de Provincia (Atlántica)
         "Talamanca", // Zona Indígena/Rural (Muy Bajo Costo)
     ]);
-    // ...
 
     // Inicialización de datos y aplicación del filtro
     const todasLasZonasRaw = data?.costos || [];
+
     // Integración de datos: Añadir mock data de Población e IDH
+    // NOTA: Se ha corregido la lógica para usar los nombres de propiedad correctos del objeto 'zona'
     const todasLasZonas = todasLasZonasRaw
         .filter((zona) => cantonesClave.has(zona.cantón))
         .map((zona) => {
@@ -88,43 +91,43 @@
 
     const promediosNacionales = data?.promedios || {};
 
-    // Variables de estado para la comparación
+    // --- Variables de estado para la comparación (Selects) ---
     let provinciaSeleccionada1 = "";
     let cantonSeleccionado1 = "";
     let provinciaSeleccionada2 = "";
     let cantonSeleccionado2 = "";
 
-    // Variables de estado para la tabla y filtros
-    let gastoComparacionSeleccionada = "";
-    let presentacionSeleccionada = "todas";
-    let idhSeleccionado = "todas";
+    // --- Variables de estado para la tabla y filtros ---
+    let gastoComparacionSeleccionada = ""; // Campo de búsqueda de texto
+    let presentacionSeleccionada = "todas"; // Filtro de Región INEC
+    let idhSeleccionado = "todas"; // Filtro de Rango IDH
     let zonasFiltradasActuales = todasLasZonas;
     let zonasParaComparar = [];
     let mostrarResults = true;
 
-    // 🆕 ESTADOS para filtros de rango (Costo y Población)
+    // --- ESTADOS para filtros de rango (Costo y Población) ---
     let costoMin = null;
     let costoMax = null;
     let poblacionMin = null;
     let poblacionMax = null;
 
-    // Variables de estado para ordenamiento
+    // --- Variables de estado para ordenamiento ---
     let criterioOrden = "costo";
     let direccionOrden = "desc";
-    let categoriaComparacion = "costo_total_estimado";
+    let categoriaComparacion = "costo_total_estimado"; // Categoría seleccionada para el gráfico
 
-    // ESTADOS para promedios nacionales (Resumen)
+    // --- ESTADOS para promedios nacionales (Resumen) ---
     let promedioNacionalIDH = 0;
     let promedioNacionalCosto = 0;
 
-    // 🆕 ESTADO para todos los promedios de rubros (Usado en ComparisonChart)
+    // --- ESTADO para todos los promedios de rubros (Usado en ComparisonChart) ---
     let promediosParaComparacion = {};
 
-    // ESTADO PARA EL MODAL DE DETALLES
+    // --- ESTADO PARA EL MODAL DE DETALLES ---
     let isModalVisible = false;
     let selectedCantonForModal = {};
 
-    // Tema
+    // --- Tema (Modo Oscuro/Claro) ---
     let theme = "light";
     setContext("theme", { theme });
 
@@ -156,7 +159,6 @@
         })
         .map((z) => z.cantón)
         .sort();
-
     $: cantonesDisponibles2 = todasLasZonas
         .filter((z) => {
             if (provinciaSeleccionada2 === "") return true;
@@ -189,7 +191,6 @@
     $: {
         if (todasLasZonas.length > 0) {
             const count = todasLasZonas.length;
-
             // 1. Calcular promedios simples para el resumen
             const sumaIDH = todasLasZonas.reduce((sum, z) => sum + z.idh, 0);
             promedioNacionalIDH = sumaIDH / count;
@@ -199,7 +200,7 @@
             );
             promedioNacionalCosto = sumaCosto / count;
 
-            // 2. 🆕 Calcular Promedios por Rubro para el ComparisonChart
+            // 2. Calcular Promedios por Rubro para el ComparisonChart
             const sums = todasLasZonas.reduce(
                 (acc, zona) => {
                     acc.vivienda += zona.gastos?.vivienda || 0;
@@ -223,7 +224,6 @@
                     ocio: 0,
                 },
             );
-
             promediosParaComparacion = {
                 costo_total_estimado: promedioNacionalCosto,
                 idh: promedioNacionalIDH,
@@ -269,8 +269,7 @@
             });
         }
 
-        // 🆕 FILTRADO POR RANGO DE COSTO TOTAL
-        // NOTA: type="number" en Svelte bindea a number si tiene valor, o null si está vacío.
+        // FILTRADO POR RANGO DE COSTO TOTAL
         if (costoMin !== null && !isNaN(costoMin)) {
             zonasFiltradas = zonasFiltradas.filter(
                 (zona) => zona.costo_total_estimado >= costoMin,
@@ -282,7 +281,7 @@
             );
         }
 
-        // 🆕 FILTRADO POR RANGO DE POBLACIÓN (usando el campo simulado 'poblacion')
+        // FILTRADO POR RANGO DE POBLACIÓN (usando el campo simulado 'poblacion')
         if (poblacionMin !== null && !isNaN(poblacionMin)) {
             zonasFiltradas = zonasFiltradas.filter(
                 (zona) => zona.poblacion >= poblacionMin,
@@ -338,7 +337,7 @@
         mostrarResults = zonasFiltradas.length > 0;
     }
 
-    // 🎯 FUNCIÓN CORREGIDA (Permite la selección y deselección correcta)
+    // Lógica para que la selección en la tabla se refleje en los selects de comparación
     function toggleComparacion(zona) {
         const cantonID = zona.cantón;
         const index1 = zonasParaComparar[0]?.cantón === cantonID ? 0 : -1;
@@ -391,7 +390,6 @@
             z.provincia === provinciaSeleccionada2 &&
             z.cantón === cantonSeleccionado2,
     );
-
     // El array de comparación principal se actualiza automáticamente
     $: {
         zonasParaComparar = [];
@@ -482,7 +480,7 @@
                     state.region ?? presentacionSeleccionada;
                 idhSeleccionado = state.idh ?? idhSeleccionado;
                 categoriaComparacion = state.category ?? categoriaComparacion;
-                // 🆕 Carga de filtros de rango
+                // Carga de filtros de rango
                 costoMin = state.costoMin ?? null;
                 costoMax = state.costoMax ?? null;
                 poblacionMin = state.poblacionMin ?? null;
@@ -511,7 +509,7 @@
         presentacionSeleccionada = "todas";
         idhSeleccionado = "todas";
 
-        // 🆕 Limpiar filtros de rango
+        // Limpiar filtros de rango
         costoMin = null;
         costoMax = null;
         poblacionMin = null;
@@ -531,6 +529,7 @@
         "Huetar Norte",
         "Atlántica",
     ];
+
     $: totalZonasParaComparar = zonasParaComparar.length;
 
     // PERSISTENCIA DE FILTROS: Guardar estado en localStorage
@@ -545,7 +544,7 @@
                 region: presentacionSeleccionada,
                 idh: idhSeleccionado,
                 category: categoriaComparacion,
-                // 🆕 Guardar filtros de rango
+                // Guardar filtros de rango
                 costoMin: costoMin,
                 costoMax: costoMax,
                 poblacionMin: poblacionMin,
@@ -634,7 +633,9 @@
                     {/each}
                 </select>
             </div>
+
             <div class="separator-vs">VS</div>
+
             <div class="comparison-group">
                 <select
                     bind:value={provinciaSeleccionada2}
@@ -722,6 +723,7 @@
         <h2>
             Exploración por Cantón ({zonasFiltradasActuales.length} Resultados)
         </h2>
+
         <div class="filter-bar">
             <input
                 type="text"
@@ -766,7 +768,6 @@
                     class="range-input"
                 />
             </div>
-
             <div class="range-group">
                 <label for="pob-min">Población (Min):</label>
                 <input
@@ -793,118 +794,129 @@
 
         <div class="table-container">
             <div class="table-header">
-                <button
-                    on:click={() => setOrden("canton")}
-                    class="col-canton header-button"
-                >
-                    Cantón {getArrow("canton")}
+                <button on:click={() => setOrden("canton")} class="col-canton">
+                    Cantón{getArrow("canton")}
                 </button>
                 <button
                     on:click={() => setOrden("provincia")}
-                    class="col-provincia header-button"
+                    class="col-provincia"
                 >
-                    Provincia {getArrow("provincia")}
+                    Provincia{getArrow("provincia")}
                 </button>
                 <button
                     on:click={() => setOrden("costo")}
-                    class="col-costo-total header-button"
+                    class="col-costo-total"
                 >
-                    Total (₡) {getArrow("costo")}
+                    Total (₡){getArrow("costo")}
                 </button>
-                <button
-                    on:click={() => setOrden("idh")}
-                    class="col-idh header-button"
-                >
-                    IDH {getArrow("idh")}
+                <button on:click={() => setOrden("idh")} class="col-idh">
+                    IDH{getArrow("idh")}
                 </button>
                 <button
                     on:click={() => setOrden("vivienda")}
-                    class="col-vivienda header-button"
+                    class="col-vivienda"
                 >
-                    Vivienda {getArrow("vivienda")}
+                    Vivienda{getArrow("vivienda")}
                 </button>
                 <button
                     on:click={() => setOrden("alimentacion")}
-                    class="col-alimentacion header-button"
+                    class="col-alimentacion"
                 >
-                    Alimentos {getArrow("alimentacion")}
+                    Aliment.{getArrow("alimentacion")}
                 </button>
                 <button
                     on:click={() => setOrden("transporte")}
-                    class="col-transporte header-button"
+                    class="col-transporte"
                 >
-                    Transp. {getArrow("transporte")}
+                    Transp.{getArrow("transporte")}
                 </button>
                 <button
                     on:click={() => setOrden("servicios")}
-                    class="col-servicios header-button"
+                    class="col-servicios"
                 >
-                    Servic. {getArrow("servicios")}
+                    Servic.{getArrow("servicios")}
                 </button>
-                <button
-                    on:click={() => setOrden("salud")}
-                    class="col-otros header-button"
-                >
-                    Salud {getArrow("salud")}
-                </button>
+                <div class="col-otros">Salud</div>
+                <div class="col-select">Sel.</div>
             </div>
 
-            {#if mostrarResults}
-                {#each zonasFiltradasActuales as zona (zona.cantón)}
-                    <div
-                        class="table-row-list"
-                        data-canton={zona.cantón}
-                        class:selected={zonaSeleccionada(zona.cantón)}
-                    >
-                        <div class="col-canton">
-                            <button
-                                on:click={() => toggleComparacion(zona)}
-                                class="comparison-toggle"
-                                aria-label="Agregar a comparación"
-                                title="Comparar {zona.cantón}"
-                            >
-                                <i class="fas fa-plus-circle"></i>
-                            </button>
-                            <span class="canton-name">{zona.cantón}</span>
-                            <span class="region-badge" title="Región INEC"
-                                >{zona.region_inec}</span
-                            >
-                        </div>
-                        <div class="col-provincia">{zona.provincia}</div>
-                        <div class="col-costo-total">
-                            {formatNumber(zona.costo_total_estimado)}
-                        </div>
+            <div class="table-list-body">
+                {#if mostrarResults}
+                    {#each zonasFiltradasActuales as zona (zona.cantón)}
                         <div
-                            class="col-idh"
-                            style="--idh-color: {zona.color_idh}"
+                            class="table-row-list"
+                            class:selected={zonaSeleccionada(zona.cantón)}
                             on:click={() => showModal(zona)}
+                            on:keydown={(e) => {
+                                if (e.key === "Enter") showModal(zona);
+                            }}
+                            tabindex="0"
                         >
-                            {zona.idh.toFixed(3)}
+                            <div class="col-canton">
+                                <span
+                                    class="idh-badge"
+                                    style="background-color: {zona.color_idh}"
+                                    title="Categoría IDH"
+                                >
+                                    {zona.idh.toFixed(3)}
+                                </span>
+                                <span class="region-badge" title="Región INEC"
+                                    >{zona.region_inec}</span
+                                >
+                                {zona.cantón}
+                            </div>
+                            <div class="col-provincia">{zona.provincia}</div>
+                            <div class="col-costo-total">
+                                {formatNumber(zona.costo_total_estimado)}
+                            </div>
+                            <div class="col-idh">
+                                {zona.poblacion.toLocaleString("es-CR")}
+                            </div>
+                            <div class="col-vivienda">
+                                {formatNumber(zona.gastos?.vivienda)}
+                            </div>
+                            <div class="col-alimentacion">
+                                {formatNumber(zona.gastos?.alimentacion)}
+                            </div>
+                            <div class="col-transporte">
+                                {formatNumber(zona.gastos?.transporte)}
+                            </div>
+                            <div class="col-servicios">
+                                {formatNumber(zona.gastos?.servicios)}
+                            </div>
+                            <div class="col-otros">
+                                {formatNumber(zona.gastos?.salud)}
+                            </div>
+                            <div class="col-select">
+                                <button
+                                    on:click|stopPropagation={() =>
+                                        toggleComparacion(zona)}
+                                    class="comparison-toggle"
+                                    title={zonaSeleccionada(zona.cantón)
+                                        ? "Quitar de comparación"
+                                        : "Añadir a comparación"}
+                                >
+                                    <i
+                                        class="fas"
+                                        class:fa-check-square={zonaSeleccionada(
+                                            zona.cantón,
+                                        )}
+                                        class:fa-square={!zonaSeleccionada(
+                                            zona.cantón,
+                                        )}
+                                    ></i>
+                                </button>
+                            </div>
                         </div>
-                        <div class="col-vivienda">
-                            {formatNumber(zona.gastos?.vivienda)}
-                        </div>
-                        <div class="col-alimentacion">
-                            {formatNumber(zona.gastos?.alimentacion)}
-                        </div>
-                        <div class="col-transporte">
-                            {formatNumber(zona.gastos?.transporte)}
-                        </div>
-                        <div class="col-servicios">
-                            {formatNumber(zona.gastos?.servicios)}
-                        </div>
-                        <div class="col-otros">
-                            {formatNumber(zona.gastos?.salud)}
-                        </div>
+                    {/each}
+                {:else}
+                    <div class="no-results">
+                        No se encontraron cantones que coincidan con los
+                        filtros.
                     </div>
-                {/each}
-            {:else}
-                <div class="no-results">
-                    No se encontraron cantones que coincidan con los filtros.
-                </div>
-            {/if}
+                {/if}
+            </div>
         </div>
-
         <CantonTooltip
             {isModalVisible}
             canton={selectedCantonForModal}
@@ -925,7 +937,6 @@
             background-color 0.3s,
             color 0.3s;
     }
-
     :global(html[data-theme="light"]) {
         --background-color: #f7f9fc;
         --card-background: #ffffff;
@@ -938,7 +949,6 @@
         --text-color-light: #333; /* Usado para botones deshabilitados */
         --chart-line-color: #cccccc;
     }
-
     :global(html[data-theme="dark"]) {
         --background-color: #1a1a2e;
         --card-background: #1f4068;
@@ -967,13 +977,38 @@
     header h1 {
         color: var(--color-primary);
         font-size: 2.5em;
-        margin-bottom: 0.1em;
+        margin-bottom: 5px;
     }
 
     header p {
         color: var(--text-color);
-        opacity: 0.8;
-        font-size: 1.1em;
+        max-width: 800px;
+        margin: 0 auto;
+        line-height: 1.5;
+    }
+
+    .theme-toggle {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background: none;
+        border: 2px solid var(--border-color);
+        color: var(--text-color);
+        padding: 10px;
+        border-radius: 50%;
+        cursor: pointer;
+        transition:
+            color 0.3s,
+            background-color 0.3s;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .theme-toggle:hover {
+        background-color: var(--border-color);
     }
 
     .divider {
@@ -982,61 +1017,31 @@
         margin: 40px 0;
     }
 
-    .theme-toggle {
-        position: absolute;
-        top: 0;
-        right: 0;
-        background: var(--card-background);
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
-        padding: 10px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1.2em;
-        transition:
-            background-color 0.3s,
-            border-color 0.3s;
-    }
-
-    .theme-toggle:hover {
-        background: var(--border-color);
+    /* --- Sección de Resumen Estadístico --- */
+    .summary-section {
+        margin-bottom: 40px;
     }
 
     h2 {
-        color: var(--color-secondary);
-        border-bottom: 2px solid var(--color-primary);
-        padding-bottom: 5px;
-        margin-top: 20px;
+        text-align: center;
+        margin-bottom: 25px;
         font-size: 1.8em;
-    }
-
-    /* --- Sección de Resumen Estadístico --- */
-    .summary-section {
-        margin-bottom: 30px;
-        padding: 10px 0;
-    }
-
-    .summary-section h2 {
-        border-bottom: none;
-        font-size: 1.5em;
-        padding-bottom: 0;
-        margin-bottom: 15px;
-        color: var(--text-color);
+        color: var(--color-primary);
     }
 
     .summary-card-container {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 20px;
     }
 
     .summary-card {
         background: var(--card-background);
-        padding: 20px;
+        padding: 25px;
         border-radius: 12px;
-        box-shadow: 0 2px 8px var(--shadow-color);
-        border-left: 5px solid var(--color-primary);
+        box-shadow: 0 4px 12px var(--shadow-color);
         text-align: center;
+        border-left: 5px solid var(--color-primary);
     }
 
     .summary-card i {
@@ -1046,19 +1051,18 @@
 
     .summary-card p {
         margin: 0;
-        font-size: 0.9em;
+        font-size: 1em;
         color: var(--text-color);
-        opacity: 0.8;
     }
 
     .summary-value {
+        font-size: 2.2em;
+        font-weight: bold;
         display: block;
-        font-size: 1.8em;
-        font-weight: 700;
         margin-top: 5px;
     }
 
-    /* Colores específicos para los valores */
+    /* Colores específicos para las métricas */
     .icon-costo,
     .value-costo {
         color: #00a300; /* Verde */
@@ -1148,14 +1152,25 @@
         border: none;
     }
 
-    .reset-button {
+    .compare-button:hover:not(:disabled) {
+        background-color: #00875c;
+    }
+
+    .compare-button:disabled {
         background-color: var(--border-color);
+        color: var(--text-color-light);
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    .reset-button {
+        background-color: var(--card-background);
         color: var(--text-color);
-        border: 1px solid var(--text-color);
+        border: 1px solid var(--border-color);
     }
 
     .reset-button:hover {
-        background-color: var(--color-accent);
+        background-color: var(--border-color);
     }
 
     .chart-container {
@@ -1165,58 +1180,80 @@
         margin-top: 20px;
         padding: 20px;
         border-radius: 8px;
-        background-color: var(--background-color);
-        border: 1px dashed var(--border-color);
+        background-color: var(--card-background);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 8px var(--shadow-color);
+    }
+
+    .distribution-chart {
+        margin-top: 40px;
     }
 
     .chart-controls {
         display: flex;
-        gap: 15px;
         align-items: center;
-        justify-content: flex-start;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+
+    .chart-controls label {
         font-weight: 600;
-        color: var(--color-secondary);
+        color: var(--color-primary);
     }
 
     .chart-controls select {
         padding: 8px 10px;
         border-radius: 6px;
         border: 1px solid var(--border-color);
-        background-color: var(--card-background);
+        background-color: var(--background-color);
         color: var(--text-color);
     }
 
-    .distribution-chart {
-        margin-top: 40px;
-    }
-    .distribution-chart h3 {
-        text-align: center;
-        color: var(--color-primary);
-        margin-bottom: 20px;
+    /* Media Query para la sección de comparación */
+    @media (max-width: 1000px) {
+        .controls-container {
+            grid-template-columns: 1fr;
+            text-align: center;
+        }
+
+        .comparison-group {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .separator-vs {
+            margin: 10px 0;
+        }
+
+        .chart-controls {
+            flex-direction: column;
+            align-items: flex-start;
+        }
     }
 
-    /* Sección de Tabla */
+    /* --- Sección de Exploración (Tabla) --- */
     .table-section {
-        padding: 20px;
+        margin-top: 40px;
     }
 
     .filter-bar {
         display: flex;
         gap: 15px;
         margin-bottom: 20px;
+        flex-wrap: wrap;
     }
 
     .search-input,
     .region-select,
     .idh-select {
-        flex: 1;
-        padding: 12px 15px;
-        border-radius: 8px;
+        padding: 10px 15px;
         border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 1em;
+        flex: 1;
+        min-width: 150px;
         background-color: var(--card-background);
         color: var(--text-color);
-        font-size: 1em;
-        transition: border-color 0.3s;
     }
 
     .search-input:focus,
@@ -1226,11 +1263,9 @@
         outline: none;
     }
 
-    /* 🆕 Estilos de la nueva barra de filtros de rango */
+    /* 📌 Estilos para los inputs de rango */
     .filter-bar-range {
-        margin-top: -5px; /* Ajuste visual */
-        margin-bottom: 20px;
-        /* Cambiar el layout para que se vea bien en varios grupos de input */
+        /* Permite que los 4 inputs de rango se muestren en varios grupos de input */
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 15px;
@@ -1239,8 +1274,7 @@
     .range-group {
         display: flex;
         flex-direction: column;
-        gap: 5px;
-        /* Alinea mejor los grupos para que no se separen de su label */
+        gap: 5px; /* Alinea mejor los grupos para que no se separen de su label */
         background-color: var(--card-background);
         padding: 5px;
         border-radius: 8px;
@@ -1282,98 +1316,109 @@
     .table-row-list {
         /* COLUMNAS ACTUALIZADAS: 1.5fr (Cantón) + 1fr (Provincia) + 0.8fr (Total) + 0.5fr (IDH) + 5 * 0.7fr (Gastos) */
         display: grid;
-        grid-template-columns: 1.5fr 1fr 0.8fr 0.5fr repeat(5, 0.7fr);
+        grid-template-columns: 1.5fr 1fr 0.8fr 0.5fr repeat(5, 0.7fr) 0.5fr;
         padding: 8px 20px;
         border-bottom: 1px solid var(--border-color);
         align-items: center;
         gap: 10px;
+        font-size: 0.9em;
     }
 
     .table-header {
         background-color: var(--color-primary);
         color: white;
         font-weight: 600;
+        border-bottom: 2px solid var(--color-accent);
         position: sticky;
         top: 0;
         z-index: 10;
-        text-align: left;
-    }
-
-    .header-button {
-        background: none;
-        color: inherit;
-        border: none;
-        padding: 0;
-        text-align: inherit;
-        font-size: 1em;
-        font-weight: inherit;
-        cursor: pointer;
-        transition: opacity 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .header-button:hover {
-        opacity: 0.8;
-    }
-
-    .table-row-list {
-        background-color: var(--card-background);
-        transition: background-color 0.2s;
         cursor: default;
     }
 
-    .table-row-list:nth-child(even) {
+    .table-header button {
+        background: none;
+        border: none;
+        color: inherit;
+        font-weight: inherit;
+        text-align: left;
+        padding: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: opacity 0.2s;
+        white-space: nowrap;
+    }
+
+    .table-header button:hover {
+        opacity: 0.8;
+    }
+
+    .table-list-body {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .table-row-list {
+        color: var(--text-color);
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+    }
+
+    .table-row-list:hover {
         background-color: var(--background-color);
     }
 
     .table-row-list.selected {
-        /* Cantones seleccionados para comparación */
-        background-color: rgba(0, 115, 230, 0.15); /* Azul claro */
+        background-color: rgba(
+            0,
+            86,
+            179,
+            0.1
+        ); /* Color claro para la fila seleccionada */
         border-left: 5px solid var(--color-primary);
-        padding-left: 15px; /* Ajuste para el border-left */
-        font-weight: 600;
-    }
-    .table-row-list.selected:nth-child(even) {
-        background-color: rgba(0, 115, 230, 0.2);
+        padding-left: 15px; /* Compensa el padding por el borde */
     }
 
-    /* Columna de Cantón */
-    .col-canton {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 600;
+    .no-results {
+        padding: 20px;
+        text-align: center;
         color: var(--text-color);
+        font-style: italic;
     }
 
-    /* Indicador de región INEC */
-    .region-badge {
-        font-size: 0.7em;
-        font-weight: 700;
-        color: var(--color-primary);
-        background-color: var(--border-color);
-        padding: 3px 6px;
-        border-radius: 4px;
-        white-space: nowrap;
-    }
-
-    /* Columna de IDH */
-    .col-idh {
-        font-weight: 700;
-        color: var(--idh-color); /* Usado el CSS variable */
+    /* Estilos de Insignias (Badges) */
+    .col-canton {
+        font-weight: 600;
         display: flex;
         align-items: center;
         gap: 5px;
-        cursor: pointer; /* AHORA ES CLICKEABLE */
-        transition: background-color 0.2s;
     }
 
-    .col-idh:hover {
-        background-color: var(
-            --border-color
-        ); /* Realzar la columna IDH al hacer hover */
+    .idh-badge,
+    .region-badge {
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 0.7em;
+        font-weight: bold;
+        color: white;
+        text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+    }
+
+    .idh-badge {
+        /* El color de fondo se define inline en el HTML */
+        min-width: 45px;
+        text-align: center;
+    }
+
+    .region-badge {
+        background-color: var(--color-secondary);
+        opacity: 0.8;
+    }
+
+    .col-idh {
+        font-weight: 600;
+        color: var(--color-primary);
     }
 
     /* Columna de Costo Total */
@@ -1404,57 +1449,46 @@
         transition: color 0.2s;
     }
 
-    .table-row-list.selected .comparison-toggle {
-        color: #dc3545; /* Rojo para indicar que se puede quitar */
+    .comparison-toggle:hover {
+        color: var(--color-primary);
     }
 
-    .no-results {
-        padding: 20px;
-        text-align: center;
-        color: var(--text-color);
-        font-style: italic;
+    .comparison-toggle .fa-check-square {
+        color: #00a300; /* Verde si está seleccionado */
     }
 
-    /* Estilos del Botón de Comparar (Para asegurar el hover) */
-    .compare-button:hover:not(:disabled) {
-        background-color: #489e87;
-    }
-
-    .compare-button:disabled {
-        background-color: var(--border-color, #e0e0e0);
-        color: var(--text-color-light, #333);
-        cursor: not-allowed;
-        opacity: 0.7;
-    }
-
-    /* Media Queries Responsive */
-    @media (max-width: 1000px) {
-        /* Ocultamos más columnas para la vista móvil, dejando solo Cantón, Provincia, Total e IDH */
+    /* Media Query para la Tabla (Móvil) */
+    @media (max-width: 900px) {
         .table-header,
         .table-row-list {
-            grid-template-columns: 1.5fr 1fr 1fr 0.8fr; /* Cantón | Provincia | Total | IDH */
+            /* Cantón | Total | Vivienda | Aliment. | Select */
+            grid-template-columns: 1.5fr 1fr 0.8fr 0.8fr 0.5fr;
+            font-size: 0.85em;
         }
-        .col-idh {
-            display: flex; /* Asegura que IDH se muestre */
-        }
-        .col-vivienda,
-        .col-alimentacion,
+
+        .col-provincia,
+        .col-idh,
         .col-transporte,
         .col-servicios,
         .col-otros {
             display: none;
         }
 
-        .controls-container {
-            grid-template-columns: 1fr;
-            gap: 15px;
+        .filter-bar-range {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 550px) {
+        .table-header,
+        .table-row-list {
+            /* Cantón | Total | Select */
+            grid-template-columns: 2fr 1fr 0.5fr;
         }
 
-        .filter-bar {
-            flex-direction: column; /* Apilar filtros de categoría */
-        }
-        .filter-bar-range {
-            grid-template-columns: 1fr 1fr; /* 2 columnas en móvil para los 4 rangos */
+        .col-vivienda,
+        .col-alimentacion {
+            display: none;
         }
     }
 </style>
