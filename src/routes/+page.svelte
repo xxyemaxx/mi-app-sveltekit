@@ -1,11 +1,12 @@
 <script>
     // @ts-nocheck
-    import { onMount, setContext } from "svelte";
+    import { onMount, setContext, getContext } from "svelte";
     // Asegúrese de que CantonTooltip, ComparisonChart y DistributionChart existan en $lib/components/
     import ComparisonChart from "$lib/components/ComparisonChart.svelte";
     import DistributionChart from "$lib/components/DistributionChart.svelte";
     import CantonTooltip from "$lib/components/CantonTooltip.svelte"; // NOTA: El componente que muestra el detalle completo es CantonTooltip en el código de ejemplo.
     import Fuse from "fuse.js"; // Se mantiene por si se quiere añadir búsqueda difusa, aunque el código usa búsqueda simple.
+    import DropdownMenu from "$lib/components/DropdownMenu.svelte";
 
     // 🌟 RUTA CORREGIDA: Apunta a $lib/components/BudgetCalculator.svelte
     import BudgetCalculator from "$lib/components/BudgetCalculator.svelte";
@@ -766,7 +767,7 @@
                 <option value="todas">IDH (Todas las Categorías)</option>
                 <option value="muy-alto">Muy Alto (0.8+)</option>
                 <option value="alto">Alto (0.7 - 0.799)</option>
-                <option value="medio-bajo">Medio/Bajo (Menos de 0.7)</option>
+                <option value="medio-bajo">Medio / Bajo (&lt; 0.7)</option>
             </select>
         </div>
 

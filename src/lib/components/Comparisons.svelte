@@ -9,322 +9,251 @@
         loadComparisons,
         deleteComparison,
     } from "$lib/firebase/db";
-    import { onMount, getContext, afterUpdate } from "svelte";
+    import { onMount, getContext } from "svelte"; // Eliminamos afterUpdate, no es necesario
 
-    // Obtener la información de los cantones seleccionados para comparación
-    // Usamos getContext para obtener datos que el padre (+page.svelte) define
-    // Esto es un patrón de SvelteKit/Svelte para compartir datos sin props directos.
-    // 💡 NOTA: DEBES ASEGURARTE DE PASAR ESTE CONTEXTO en +page.svelte
-    // Ejemplo: setContext("comparisonData", { provincias: ["Alajuela", "Cartago"], cantones: ["Alajuela", "La Unión"] });
-    let comparisonData = { provincias: [], cantones: [] };
+    // 1. OBTENER EL CONTEXTO DE FORMA NO REACTIVA (referencia al objeto)
+    // El objeto retornado por getContext mantiene referencias a las variables reactivas
+    // del padre (+page.svelte).
+    const comparisonContext = getContext("comparisonData");
 
-    // Definir la función para actualizar comparisonData desde el componente padre
-    // Si no puedes obtenerlo por contexto, tendrás que pasar estos datos como props:
-    // export let zonasParaComparar = [];
-    // Por ahora, asumimos que el padre actualizará la variable `comparisonData` directamente si es necesario.
+    // 2. HACER LAS VARIABLES LOCALES REACTIVAS A LOS VALORES DEL CONTEXTO
+    // Usamos $: para que estas variables se actualicen automáticamente cuando el padre
+    // (+page.svelte) llame a $: setContext(...)
+    $: zonasParaComparar = comparisonContext?.zonasParaComparar || [];
+    $: categoriaComparacion =
+        comparisonContext?.categoriaComparacion || "costo_total_estimado";
+
+    // 3. Lógica para activar el botón Guardar
+    // Solo se puede guardar si hay 1 o 2 zonas seleccionadas Y el usuario está logueado
+    $: canSave = zonasParaComparar.length > 0 && $user;
 
     // --- Estado Local ---
     let savedComparisons = [];
     let isLoading = false;
     let message = "Cargando historial...";
-    let status = null; // null, 'success', 'error'
+    let status = null; // null | 'success' | 'error'
 
-    // --- Función de Carga ---
-    async function fetchComparisons() {
-        if (!$user) {
-            savedComparisons = [];
-            message = "Inicia sesión para ver y guardar tus comparaciones.";
-            return;
-        }
+    // --- Funciones de Utilidad ---
+
+    // Función para recargar el historial
+    async function refreshComparisons() {
+        if (!$user) return; // No recargar si no hay usuario
 
         isLoading = true;
-        message = "Cargando historial...";
-        const data = await loadComparisons($user.uid);
-
-        savedComparisons = data;
-        if (savedComparisons.length === 0) {
-            message = "No tienes comparaciones guardadas. Guarda la primera!";
-        } else {
-            message = null; // Limpiar mensaje si hay datos
+        message = "Recargando historial...";
+        try {
+            // Pasamos el UID del usuario logueado
+            const data = await loadComparisons($user.uid);
+            savedComparisons = data;
+            message = data.length > 0 ? "" : "No hay comparaciones guardadas.";
+        } catch (error) {
+            message = "Error al cargar el historial.";
+            console.error("Error al cargar comparaciones:", error);
+        } finally {
+            isLoading = false;
         }
-        isLoading = false;
     }
 
-    // --- Función de Guardado ---
     async function handleSave() {
-        if (!$user) {
-            status = "error";
-            message = "Debes iniciar sesión para guardar.";
-            return;
-        }
+        if (!canSave || !$user) return;
 
-        // 1. Obtener los datos actuales de la comparación desde el localStorage
-        // Ya que SvelteKit no tiene contexto global directo para variables reactivas.
-        const dashboardState = JSON.parse(
-            localStorage.getItem("dashboardState") || "{}",
-        );
+        isLoading = true;
+        status = null;
 
-        if (!dashboardState.c1 && !dashboardState.c2) {
-            status = "error";
-            message = "Selecciona al menos un cantón antes de guardar.";
-            return;
-        }
-
-        const dataToSave = {
-            canton1: dashboardState.c1 || null,
-            provincia1: dashboardState.p1 || null,
-            canton2: dashboardState.c2 || null,
-            provincia2: dashboardState.p2 || null,
-            category: dashboardState.category || "costo_total_estimado",
-            // Otros filtros importantes que quieras guardar
+        // 1. Definir el payload de datos a guardar
+        const comparisonToSave = {
+            zonas: zonasParaComparar.map((zona) => ({
+                canton: zona.cantón,
+                provincia: zona.provincia,
+                // Guardamos el costo para que sea visible en el historial
+                costo: zona.costo_total_estimado,
+            })),
+            categoria: categoriaComparacion,
+            userId: $user.uid, // Aseguramos el userId en el payload
         };
 
-        const success = await saveComparison($user.uid, dataToSave);
+        // 2. Llamar a la función de guardado
+        const success = await saveComparison($user.uid, comparisonToSave);
+
         if (success) {
             status = "success";
-            message = "Comparación guardada con éxito!";
-            // Recargar la lista
-            await fetchComparisons();
+            message = "¡Comparación guardada con éxito!";
+            // Recargar para ver el nuevo elemento en la lista
+            await refreshComparisons();
         } else {
             status = "error";
-            message = "Error al guardar la comparación.";
+            message = "Error al guardar la comparación. Intenta de nuevo.";
         }
 
-        // Limpiar mensaje de estado después de 3 segundos
-        setTimeout(() => {
-            status = null;
-            message = null;
-            fetchComparisons();
-        }, 3000);
+        isLoading = false;
+        // Limpiar el mensaje de estado después de un tiempo
+        setTimeout(() => (status = null), 3000);
     }
 
-    // --- Función de Eliminación ---
-    async function handleDelete(id) {
-        if (
-            confirm("¿Estás seguro de que quieres eliminar esta comparación?")
-        ) {
-            const success = await deleteComparison(id);
-            if (success) {
-                status = "success";
-                message = "Comparación eliminada.";
-                await fetchComparisons();
-                // Limpiar mensaje
-                setTimeout(() => {
-                    status = null;
-                    message = null;
-                }, 3000);
-            } else {
-                status = "error";
-                message = "Error al eliminar.";
-                setTimeout(() => {
-                    status = null;
-                    message = null;
-                }, 3000);
+    async function handleDelete(comparisonId) {
+        if (!$user) return;
+
+        isLoading = true;
+        status = null;
+        message = "Eliminando...";
+
+        const success = await deleteComparison(comparisonId);
+
+        if (success) {
+            status = "success";
+            message = "Comparación eliminada.";
+            // Filtra la comparación eliminada
+            savedComparisons = savedComparisons.filter(
+                (c) => c.id !== comparisonId,
+            );
+            if (savedComparisons.length === 0) {
+                message = "No hay comparaciones guardadas.";
             }
+        } else {
+            status = "error";
+            message = "Error al eliminar la comparación.";
         }
+
+        isLoading = false;
+        setTimeout(() => (status = null), 3000);
     }
 
-    // --- Lógica de Carga y Reactividad ---
-    onMount(() => {
-        // Cargar al inicio si el usuario ya está logueado (ej: por sesión persistente)
-        if ($user) {
-            fetchComparisons();
-        }
-    });
-
-    // Reactividad a cambios en el usuario (login/logout)
-    $: if ($user !== undefined) {
-        fetchComparisons();
-    }
-
-    // Función de ayuda para formatear la fecha
-    function formatTimestamp(timestamp) {
-        if (!timestamp) return "Fecha desconocida";
-        if (timestamp instanceof Date) {
-            return timestamp.toLocaleDateString("es-CR", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-            });
-        }
-        return "Cargando fecha...";
-    }
-
-    // Función para aplicar una comparación cargada (simula la acción de cargar)
-    function applyComparison(comp) {
-        if (typeof localStorage !== "undefined") {
-            const state = JSON.stringify({
-                p1: comp.provincia1 || "",
-                c1: comp.canton1 || "",
-                p2: comp.provincia2 || "",
-                c2: comp.canton2 || "",
-                // Preservar otros filtros o resetearlos según la lógica de tu app
-                // ... (mantener otros campos del dashboardState si no están en comp)
-                category: comp.category || "costo_total_estimado",
-                calculatorOpen: true, // Abrir calculadora
-            });
-            localStorage.setItem("dashboardState", state);
-            // Recargar la página para que SvelteKit y +page.svelte lean el nuevo estado
-            window.location.reload();
-        }
+    // Ejecutar al montar o cuando el usuario cambie
+    $: if ($user) {
+        refreshComparisons();
+    } else {
+        savedComparisons = [];
+        message = "Inicia sesión para ver tu historial.";
+        isLoading = false;
     }
 </script>
 
-<div class="comparison-history-box">
-    <h3><i class="fas fa-history"></i> Historial de Comparaciones</h3>
-
-    {#if $user}
-        <p>Guardar la selección actual de hasta dos cantones:</p>
-        <button on:click={handleSave} class="save-btn" disabled={isLoading}>
-            {#if isLoading}
+<div class="comparisons-container">
+    {#if !$user}
+        <p class="not-logged-in-msg">
+            Inicia sesión en la pestaña **Login** para guardar tu historial de
+            comparaciones.
+        </p>
+    {:else}
+        <button
+            class="save-btn"
+            on:click={handleSave}
+            disabled={!canSave || isLoading}
+        >
+            {#if isLoading && status !== "success" && status !== "error"}
                 Guardando...
             {:else}
-                <i class="fas fa-save"></i> Guardar Comparación Actual
+                Guardar Comparación Actual ({zonasParaComparar.length} Zonas)
             {/if}
         </button>
 
-        {#if status && message}
-            <div class="status-message {status}">
-                {message}
-            </div>
+        {#if status}
+            <div class="status-message {status}">{message}</div>
         {/if}
 
         <hr class="divider" />
 
-        <h4>Últimas {savedComparisons.length} Comparaciones:</h4>
+        <h3>Historial Guardado</h3>
 
-        {#if isLoading}
-            <p class="loading-state">Cargando...</p>
-        {:else if savedComparisons.length > 0}
+        {#if isLoading && $user && status !== "success"}
+            <p class="loading-state">Cargando historial...</p>
+        {:else if savedComparisons.length === 0}
+            <p class="empty-list-msg">{message}</p>
+        {:else}
             <ul class="comparison-list">
-                {#each savedComparisons as comp (comp.id)}
-                    <li>
+                {#each savedComparisons as comparison}
+                    <li class="comparison-item">
                         <div class="comparison-info">
-                            <span class="location">
-                                {comp.canton1 ||
-                                    comp.provincia1 ||
-                                    "Cantón Desconocido"}
-                                {#if comp.canton2}
-                                    <span class="separator-vs-mini"> vs </span>
-                                    {comp.canton2}
+                            {#each comparison.zonas as zona, i}
+                                <span class="canton-name">{zona.canton}</span>
+                                {#if i === 0 && comparison.zonas.length === 2}
+                                    <span class="separator-vs-mini">vs</span>
                                 {/if}
-                                <span class="category-tag"
-                                    >({comp.category.replace(/_/g, " ")})</span
-                                >
-                            </span>
-                            <span class="timestamp">
-                                Guardado: {formatTimestamp(comp.timestamp)}
-                            </span>
+                            {/each}
+                            <span class="category-tag"
+                                >{comparison.categoria
+                                    .split("_")
+                                    .join(" ")}</span
+                            >
                         </div>
+
                         <div class="comparison-actions">
+                            {#if comparison.timestamp}
+                                <span class="timestamp"
+                                    >{new Date(
+                                        comparison.timestamp,
+                                    ).toLocaleDateString()}</span
+                                >
+                            {/if}
                             <button
-                                on:click={() => applyComparison(comp)}
-                                class="action-btn apply-btn"
-                                title="Cargar y Aplicar"
+                                class="delete-btn"
+                                on:click={() => handleDelete(comparison.id)}
+                                title="Eliminar comparación"
                             >
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                            <button
-                                on:click={() => handleDelete(comp.id)}
-                                class="action-btn delete-btn"
-                                title="Eliminar"
-                            >
-                                <i class="fas fa-trash"></i>
+                                🗑️
                             </button>
                         </div>
                     </li>
                 {/each}
             </ul>
-        {:else}
-            <p class="loading-state">{message}</p>
         {/if}
-    {:else}
-        <p class="not-logged-in-msg">
-            Inicia sesión en el panel de arriba para ver y guardar tu historial.
-        </p>
     {/if}
 </div>
 
 <style>
-    .comparison-history-box {
-        padding: 20px;
-        background-color: var(--card-background, #fff);
-        border-radius: 8px;
-        border: 1px solid var(--border-color, #e0e7ff);
-        box-shadow: 0 2px 4px var(--shadow-color, rgba(0, 0, 0, 0.05));
-    }
-    h3 {
-        margin-top: 0;
-        color: var(--color-primary, #4f46e5);
-        font-size: 1.2em;
-        text-align: center;
-    }
-    h4 {
-        margin-top: 15px;
-        margin-bottom: 10px;
-        color: var(--text-color, #333);
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 5px;
-        font-size: 1.1em;
-    }
-    .divider {
-        border: 0;
-        height: 1px;
-        background-color: var(--border-color, #e0e7ff);
-        margin: 15px 0;
+    /* Estilos del contenedor principal */
+    .comparisons-container {
+        padding: 15px;
+        background-color: var(--background-color-secondary, #fff);
+        min-height: 200px;
     }
     .save-btn {
         width: 100%;
-        padding: 10px;
-        background-color: var(--color-primary, #4f46e5);
+        padding: 12px;
+        background-color: var(--color-accent, #10b981);
         color: white;
         border: none;
         border-radius: 6px;
         cursor: pointer;
         font-weight: bold;
         transition: background-color 0.3s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
+        margin-bottom: 15px;
     }
     .save-btn:hover:not(:disabled) {
-        background-color: var(--color-primary-dark, #4338ca);
+        background-color: #0d9475; /* Tono más oscuro de accent */
     }
     .save-btn:disabled {
-        background-color: #a5b4fc;
+        background-color: var(--border-color);
         cursor: not-allowed;
     }
+    .divider {
+        border: none;
+        border-top: 1px solid var(--border-color, #eee);
+        margin: 15px 0;
+    }
+    /* Estilos de la lista */
     .comparison-list {
         list-style: none;
         padding: 0;
+        margin: 10px 0 0 0;
     }
-    .comparison-list li {
+    .comparison-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 10px 0;
-        border-bottom: 1px dashed var(--border-color, #eee);
-        transition: background-color 0.2s;
+        border-bottom: 1px dashed var(--border-color-light, #f0f0f0);
     }
-    .comparison-list li:hover {
-        background-color: var(--background-color, #f7f9fc);
-    }
-    .comparison-list li:last-child {
+    .comparison-item:last-child {
         border-bottom: none;
     }
     .comparison-info {
         display: flex;
-        flex-direction: column;
+        align-items: center;
+        font-size: 0.9em;
+        color: var(--text-color, #333);
     }
-    .comparison-actions {
-        display: flex;
-        gap: 5px;
-    }
-    .location {
-        font-weight: 600;
+    .canton-name {
         color: var(--text-color, #333);
         font-size: 1em;
     }
@@ -346,6 +275,23 @@
         font-size: 0.8em;
         color: var(--text-color-light, #666);
     }
+    .comparison-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .delete-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1em;
+        color: var(--error-color, #dc3545);
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    .delete-btn:hover {
+        opacity: 1;
+    }
     .status-message {
         padding: 10px;
         border-radius: 6px;
@@ -361,28 +307,11 @@
         color: #842029;
     }
     .loading-state,
-    .not-logged-in-msg {
+    .not-logged-in-msg,
+    .empty-list-msg {
         text-align: center;
-        color: var(--text-color-light);
+        color: var(--text-color-light, #666);
+        padding: 20px 10px;
         font-style: italic;
-    }
-    .action-btn {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 1em;
-        width: 30px;
-        height: 30px;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-    }
-    .action-btn:hover {
-        background-color: var(--border-color);
-    }
-    .apply-btn {
-        color: var(--color-primary);
-    }
-    .delete-btn {
-        color: var(--error-color);
     }
 </style>

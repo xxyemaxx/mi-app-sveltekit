@@ -2,38 +2,47 @@
 // src/lib/stores/authStore.js
 
 import { writable } from 'svelte/store';
-// 'auth' es undefined en SSR, por eso lo importamos como es
-import { auth } from '$lib/firebase/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 export const user = writable(null);
 
-// 🛑 SOLUCIÓN 2: Solo suscribirse a la autenticación si 'window' existe Y 'auth' es válido
-if (typeof window !== 'undefined' && auth) {
+// Referencia global para 'auth'. Se inicializa solo en el navegador.
+let authReference;
 
-    // Suscribirse a los cambios de autenticación de Firebase
-    onAuthStateChanged(auth, (currentUser) => {
-        if (currentUser) {
-            user.set({
-                uid: currentUser.uid,
-                email: currentUser.email,
+// 🛑 INICIALIZACIÓN DIFERIDA (Solo Cliente) 🛑
+if (typeof window !== 'undefined') {
+    // Importación dinámica que se ejecuta SOLO en el lado del cliente
+    import('$lib/firebase/firebase').then(module => {
+        authReference = module.auth;
+
+        // 🚨 La suscripción debe ocurrir SOLO después de que 'auth' se haya cargado.
+        if (authReference) {
+            onAuthStateChanged(authReference, (currentUser) => {
+                if (currentUser) {
+                    user.set({
+                        uid: currentUser.uid,
+                        email: currentUser.email,
+                    });
+                } else {
+                    user.set(null);
+                }
             });
-        } else {
-            user.set(null);
         }
+    }).catch(error => {
+        console.error("No se pudo cargar la referencia a Firebase Auth:", error);
     });
 }
 
 
-// Función para cerrar sesión (también debe ser segura contra auth=undefined)
+// Función para cerrar sesión (Ahora usa la referencia cargada dinámicamente)
 export const logout = async () => {
-    // Es buena práctica verificar que 'auth' exista antes de usarlo
-    if (!auth) {
-        console.warn("Auth no está inicializado. No se puede cerrar sesión en SSR.");
+    // Verifica si la referencia se cargó correctamente en el cliente
+    if (!authReference) {
+        console.warn("Auth no está inicializado. No se puede cerrar sesión.");
         return;
     }
     try {
-        await signOut(auth);
+        await signOut(authReference);
     } catch (error) {
         console.error("Error al cerrar sesión:", error);
     }
