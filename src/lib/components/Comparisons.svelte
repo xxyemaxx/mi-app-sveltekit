@@ -1,284 +1,296 @@
 <script>
     // @ts-nocheck
 
-    // Importamos el store del usuario para saber si está logueado
+    // Importaciones existentes
     import { user } from "$lib/stores/authStore";
-    // Importamos las funciones de la base de datos
     import {
         saveComparison,
         loadComparisons,
         deleteComparison,
     } from "$lib/firebase/db";
-    import { onMount, getContext } from "svelte"; // Eliminamos afterUpdate, no es necesario
+    import { onMount, getContext } from "svelte";
 
-    // 1. OBTENER EL CONTEXTO DE FORMA NO REACTIVA (referencia al objeto)
-    // El objeto retornado por getContext mantiene referencias a las variables reactivas
-    // del padre (+page.svelte).
+    // 💡 Importar el history store para la reactividad
+    import {
+        comparisonSaveEvent,
+        notifyComparisonSaved,
+    } from "$lib/stores/historyStore";
+
+    // 1. VARIABLES REACTIVAS DEL CONTEXTO
     const comparisonContext = getContext("comparisonData");
-
-    // 2. HACER LAS VARIABLES LOCALES REACTIVAS A LOS VALORES DEL CONTEXTO
-    // Usamos $: para que estas variables se actualicen automáticamente cuando el padre
-    // (+page.svelte) llame a $: setContext(...)
     $: zonasParaComparar = comparisonContext?.zonasParaComparar || [];
     $: categoriaComparacion =
         comparisonContext?.categoriaComparacion || "costo_total_estimado";
 
-    // 3. Lógica para activar el botón Guardar
-    // Solo se puede guardar si hay 1 o 2 zonas seleccionadas Y el usuario está logueado
+    // 2. ESTADO LOCAL Y REACTIVIDAD
+    let savedComparisons = [];
+    let statusMessage = "";
+    let isLoading = false;
+    let isLoadingHistory = false; // Estado de carga para el historial
+
+    // Solo se puede guardar si hay 1 o más zonas seleccionadas Y el usuario está logueado
     $: canSave = zonasParaComparar.length > 0 && $user;
 
-    // --- Estado Local ---
-    let savedComparisons = [];
-    let isLoading = false;
-    let message = "Cargando historial...";
-    let status = null; // null | 'success' | 'error'
+    // --- Lógica de Carga y Reactividad del Historial ---
 
-    // --- Funciones de Utilidad ---
+    // Función principal para cargar el historial desde Firestore
+    async function fetchComparisons() {
+        if (!$user?.uid) {
+            savedComparisons = []; // Limpiar si no hay usuario logueado
+            return;
+        }
 
-    // Función para recargar el historial
-    async function refreshComparisons() {
-        if (!$user) return; // No recargar si no hay usuario
-
-        isLoading = true;
-        message = "Recargando historial...";
+        isLoadingHistory = true;
         try {
-            // Pasamos el UID del usuario logueado
+            // 🚨 USAMOS $user.uid para cargar solo las comparaciones de este usuario
             const data = await loadComparisons($user.uid);
             savedComparisons = data;
-            message = data.length > 0 ? "" : "No hay comparaciones guardadas.";
         } catch (error) {
-            message = "Error al cargar el historial.";
             console.error("Error al cargar comparaciones:", error);
+            statusMessage = "Error al cargar el historial.";
         } finally {
-            isLoading = false;
+            isLoadingHistory = false;
         }
     }
 
-    async function handleSave() {
-        if (!canSave || !$user) return;
+    // 🚨 Reactividad: Recargar historial cuando cambia el usuario ($user) o se dispara un evento de guardado ($comparisonSaveEvent)
+    // Esto asegura que la lista se actualice después de un login, logout, save o delete.
+    $: if ($user || $comparisonSaveEvent) {
+        fetchComparisons();
+    }
+
+    // --- 3. Lógica de Guardar Comparación ---
+
+    async function handleSaveComparison() {
+        if (!canSave || isLoading) return;
 
         isLoading = true;
-        status = null;
+        statusMessage = "Guardando comparación...";
 
-        // 1. Definir el payload de datos a guardar
-        const comparisonToSave = {
+        // Objeto de la comparación a guardar
+        const comparisonData = {
+            // Mapeamos las zonas a un formato simple
             zonas: zonasParaComparar.map((zona) => ({
-                canton: zona.cantón,
                 provincia: zona.provincia,
-                // Guardamos el costo para que sea visible en el historial
-                costo: zona.costo_total_estimado,
+                canton: zona.canton,
             })),
-            categoria: categoriaComparacion,
-            userId: $user.uid, // Aseguramos el userId en el payload
+            // Guardamos la categoría de la comparación
+            category: categoriaComparacion,
         };
 
-        // 2. Llamar a la función de guardado
-        const success = await saveComparison($user.uid, comparisonToSave);
-
-        if (success) {
-            status = "success";
-            message = "¡Comparación guardada con éxito!";
-            // Recargar para ver el nuevo elemento en la lista
-            await refreshComparisons();
-        } else {
-            status = "error";
-            message = "Error al guardar la comparación. Intenta de nuevo.";
+        try {
+            // 🚨 Llamamos a la función de Firebase/Firestore
+            const success = await saveComparison($user.uid, comparisonData);
+            if (success) {
+                statusMessage = "¡Comparación guardada con éxito!";
+                // 💡 Notificar al store de historia para forzar una recarga
+                notifyComparisonSaved();
+            } else {
+                statusMessage = "No se pudo guardar la comparación.";
+            }
+        } catch (error) {
+            console.error("Error al guardar:", error);
+            statusMessage = "Ocurrió un error inesperado al guardar.";
+        } finally {
+            isLoading = false;
+            setTimeout(() => {
+                statusMessage = "";
+            }, 3000);
         }
-
-        isLoading = false;
-        // Limpiar el mensaje de estado después de un tiempo
-        setTimeout(() => (status = null), 3000);
     }
 
-    async function handleDelete(comparisonId) {
-        if (!$user) return;
+    // --- 4. Lógica de Eliminar Comparación ---
+
+    async function handleDelete(id) {
+        if (isLoading) return;
 
         isLoading = true;
-        status = null;
-        message = "Eliminando...";
+        statusMessage = "Eliminando comparación...";
 
-        const success = await deleteComparison(comparisonId);
-
-        if (success) {
-            status = "success";
-            message = "Comparación eliminada.";
-            // Filtra la comparación eliminada
-            savedComparisons = savedComparisons.filter(
-                (c) => c.id !== comparisonId,
-            );
-            if (savedComparisons.length === 0) {
-                message = "No hay comparaciones guardadas.";
+        try {
+            const success = await deleteComparison(id);
+            if (success) {
+                statusMessage = "Comparación eliminada.";
+                // 💡 Notificar al store de historia para forzar una recarga
+                notifyComparisonSaved();
+            } else {
+                statusMessage = "No se pudo eliminar.";
             }
-        } else {
-            status = "error";
-            message = "Error al eliminar la comparación.";
+        } catch (error) {
+            console.error("Error al eliminar:", error);
+            statusMessage = "Ocurrió un error inesperado al eliminar.";
+        } finally {
+            isLoading = false;
+            setTimeout(() => {
+                statusMessage = "";
+            }, 3000);
         }
-
-        isLoading = false;
-        setTimeout(() => (status = null), 3000);
-    }
-
-    // Ejecutar al montar o cuando el usuario cambie
-    $: if ($user) {
-        refreshComparisons();
-    } else {
-        savedComparisons = [];
-        message = "Inicia sesión para ver tu historial.";
-        isLoading = false;
     }
 </script>
 
 <div class="comparisons-container">
-    {#if !$user}
-        <p class="not-logged-in-msg">
-            Inicia sesión en la pestaña **Login** para guardar tu historial de
-            comparaciones.
-        </p>
-    {:else}
+    <div class="current-comparison">
         <button
             class="save-btn"
-            on:click={handleSave}
+            on:click={handleSaveComparison}
             disabled={!canSave || isLoading}
         >
-            {#if isLoading && status !== "success" && status !== "error"}
-                Guardando...
-            {:else}
-                Guardar Comparación Actual ({zonasParaComparar.length} Zonas)
-            {/if}
+            <i class="fas fa-save"></i>
+            Guardar Comparación Actual ({zonasParaComparar.length} Zonas)
+            {#if isLoading}{/if}
         </button>
-
-        {#if status}
-            <div class="status-message {status}">{message}</div>
+        {#if statusMessage}
+            <p class="status-message">{statusMessage}</p>
         {/if}
+    </div>
 
-        <hr class="divider" />
+    <div class="history-section">
+        <h3>Historial</h3>
 
-        <h3>Historial Guardado</h3>
-
-        {#if isLoading && $user && status !== "success"}
-            <p class="loading-state">Cargando historial...</p>
+        {#if !$user}
+            <p class="status-message">
+                Debes iniciar sesión para ver tu historial.
+            </p>
+        {:else if isLoadingHistory}
+            <p class="status-message">Cargando historial...</p>
         {:else if savedComparisons.length === 0}
-            <p class="empty-list-msg">{message}</p>
+            <p class="status-message">No hay comparaciones guardadas.</p>
         {:else}
             <ul class="comparison-list">
-                {#each savedComparisons as comparison}
+                {#each savedComparisons as comp (comp.id)}
                     <li class="comparison-item">
-                        <div class="comparison-info">
-                            {#each comparison.zonas as zona, i}
-                                <span class="canton-name">{zona.canton}</span>
-                                {#if i === 0 && comparison.zonas.length === 2}
+                        <div class="comparison-details">
+                            {#each comp.zonas as zona, i}
+                                <span class="comparison-item-name">
+                                    {zona.provincia} - {zona.canton}
+                                </span>
+                                {#if i < comp.zonas.length - 1}
                                     <span class="separator-vs-mini">vs</span>
                                 {/if}
                             {/each}
                             <span class="category-tag"
-                                >{comparison.categoria
-                                    .split("_")
-                                    .join(" ")}</span
+                                >{comp.category.replace(/_/g, " ")}</span
+                            >
+                            <span class="timestamp"
+                                >{new Date(
+                                    comp.timestamp,
+                                ).toLocaleDateString()}</span
                             >
                         </div>
-
                         <div class="comparison-actions">
-                            {#if comparison.timestamp}
-                                <span class="timestamp"
-                                    >{new Date(
-                                        comparison.timestamp,
-                                    ).toLocaleDateString()}</span
-                                >
-                            {/if}
                             <button
                                 class="delete-btn"
-                                on:click={() => handleDelete(comparison.id)}
-                                title="Eliminar comparación"
+                                on:click={() => handleDelete(comp.id)}
+                                disabled={isLoading}
                             >
-                                🗑️
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </li>
                 {/each}
             </ul>
         {/if}
-    {/if}
+    </div>
 </div>
 
 <style>
-    /* Estilos del contenedor principal */
-    .comparisons-container {
-        padding: 15px;
-        background-color: var(--background-color-secondary, #fff);
-        min-height: 200px;
-    }
+    /* ... Tus estilos existentes ... */
+
+    /* Estilos del botón Guardar */
     .save-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: 100%;
-        padding: 12px;
-        background-color: var(--color-accent, #10b981);
+        padding: 10px 15px;
+        background-color: var(
+            --color-accent,
+            #10b981
+        ); /* Color verde que usas */
         color: white;
         border: none;
         border-radius: 6px;
         cursor: pointer;
-        font-weight: bold;
+        font-weight: 600;
         transition: background-color 0.3s;
         margin-bottom: 15px;
     }
+    .save-btn i {
+        margin-right: 8px;
+    }
     .save-btn:hover:not(:disabled) {
-        background-color: #0d9475; /* Tono más oscuro de accent */
+        background-color: #0d9475;
     }
     .save-btn:disabled {
-        background-color: var(--border-color);
+        background-color: var(--border-color, #e5e7eb);
+        color: var(--text-color-light, #666);
         cursor: not-allowed;
     }
-    .divider {
-        border: none;
-        border-top: 1px solid var(--border-color, #eee);
-        margin: 15px 0;
+
+    /* Estilos de la lista de historial */
+    .history-section h3 {
+        font-size: 1.1em;
+        margin-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 5px;
     }
-    /* Estilos de la lista */
     .comparison-list {
         list-style: none;
         padding: 0;
-        margin: 10px 0 0 0;
+        margin: 0;
     }
     .comparison-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 10px 0;
-        border-bottom: 1px dashed var(--border-color-light, #f0f0f0);
+        border-bottom: 1px solid var(--border-color);
     }
     .comparison-item:last-child {
         border-bottom: none;
     }
-    .comparison-info {
+    .comparison-details {
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
+        flex-grow: 1;
         font-size: 0.9em;
-        color: var(--text-color, #333);
     }
-    .canton-name {
+    .comparison-item-name {
         color: var(--text-color, #333);
+        font-weight: 600;
         font-size: 1em;
+        margin-right: 5px;
     }
     .separator-vs-mini {
         color: var(--text-color-light, #666);
         margin: 0 5px;
         font-weight: normal;
+        font-style: italic;
     }
     .category-tag {
-        font-size: 0.7em;
+        font-size: 0.75em;
         padding: 2px 5px;
-        background-color: var(--color-accent, #10b981);
+        background-color: var(
+            --color-primary,
+            #4f46e5
+        ); /* Usa tu color primario para la categoría */
         color: white;
         border-radius: 4px;
         margin-left: 8px;
         text-transform: capitalize;
+        white-space: nowrap;
     }
     .timestamp {
         font-size: 0.8em;
         color: var(--text-color-light, #666);
+        margin-left: 10px;
     }
     .comparison-actions {
         display: flex;
         align-items: center;
         gap: 10px;
+        margin-left: 10px;
     }
     .delete-btn {
         background: none;
@@ -294,24 +306,10 @@
     }
     .status-message {
         padding: 10px;
-        border-radius: 6px;
-        margin-top: 10px;
-        font-weight: bold;
-    }
-    .status-message.success {
-        background-color: #d1e7dd;
-        color: #0f5132;
-    }
-    .status-message.error {
-        background-color: #f8d7da;
-        color: #842029;
-    }
-    .loading-state,
-    .not-logged-in-msg,
-    .empty-list-msg {
+        color: var(--text-color);
+        background-color: var(--background-color-light);
+        border-radius: 4px;
         text-align: center;
-        color: var(--text-color-light, #666);
-        padding: 20px 10px;
-        font-style: italic;
+        font-size: 0.9em;
     }
 </style>
